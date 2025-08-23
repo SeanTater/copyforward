@@ -3,14 +3,16 @@ name = "copyforward"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
+pyo3 = { version = "0.20", features = ["extension-module"] }
 rand = "0.8"
 rand_chacha = "0.3"
 
 [dev-dependencies]
 criterion = "0.5"
-rand = "0.8"
-rand_chacha = "0.3"
 
 [[bench]]
 name = "bench_copyforward"
