@@ -13,14 +13,26 @@ Usage (Rust)
 
 Add this crate as a dependency (local development) and use `LongestMatch::from_messages`.
 
+Example (Rust) — configure minimum match length:
+
+```rust
+use copyforward::{LongestMatch, LongestMatchConfig};
+
+let msgs = &["hello", "hello world"];
+let cfg = LongestMatchConfig { min_match_len: 4, lookback: None };
+let cf = LongestMatch::with_config(&cfg, msgs);
+let segments = cf.segments();
+```
+
 Usage (Python)
 
 Build the Python extension with maturin or `maturin develop` (recommended). Then:
 
 ```python
-from copyforward_py import PyLongestMatch
+from copyforward import PyLongestMatch
 msgs = ["hello", "hello world"]
-cf = PyLongestMatch(msgs)
+# keyword args supported for min_match_len and lookback
+cf = PyLongestMatch(msgs, min_match_len=4, lookback=None)
 print(cf.segments())
 print(cf.render_with_static("..."))
 ```

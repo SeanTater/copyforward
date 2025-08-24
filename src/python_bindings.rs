@@ -1,3 +1,4 @@
+#![allow(unsafe_op_in_unsafe_fn)]
 use pyo3::prelude::*;
 use crate::{LongestMatch, CopyForward};
 
@@ -10,9 +11,10 @@ struct PyLongestMatch {
 #[pymethods]
 impl PyLongestMatch {
     #[new]
-    fn new(messages: Vec<String>) -> Self {
+    fn new(messages: Vec<String>, min_match_len: Option<usize>, lookback: Option<usize>) -> Self {
         let refs: Vec<&str> = messages.iter().map(|s| s.as_str()).collect();
-        PyLongestMatch { inner: <LongestMatch as CopyForward>::from_messages(&refs) }
+        let cfg = crate::LongestMatchConfig { min_match_len: min_match_len.unwrap_or(1), lookback };
+        PyLongestMatch { inner: LongestMatch::with_config(&cfg, &refs) }
     }
 
     fn segments(&self) -> Vec<Vec<String>> {
@@ -35,7 +37,7 @@ impl PyLongestMatch {
 }
 
 #[pymodule]
-fn copyforward_py(_py: Python, m: &PyModule) -> PyResult<()> {
+fn copyforward(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyLongestMatch>()?;
     Ok(())
 }

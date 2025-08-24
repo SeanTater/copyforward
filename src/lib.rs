@@ -39,24 +39,43 @@ pub trait CopyForward {
 pub struct LongestMatch {
     inner: Vec<Vec<Segment>>,
     messages: Vec<String>,
+    pub config: LongestMatchConfig,
 }
 
-impl CopyForward for LongestMatch {
-    fn from_messages(_messages: &[&str]) -> LongestMatch {
+/// Configuration for `LongestMatch` algorithm.
+#[derive(Debug, Clone)]
+pub struct LongestMatchConfig {
+    pub min_match_len: usize,
+    /// lookback window: only consider previous `lookback` messages
+    /// when matching. `None` means consider all previous messages.
+    pub lookback: Option<usize>,
+}
+
+impl Default for LongestMatchConfig {
+    fn default() -> Self {
+        LongestMatchConfig { min_match_len: 1, lookback: None }
+    }
+}
+
+impl LongestMatch {
+    /// Build using an explicit configuration.
+    pub fn with_config(config: &LongestMatchConfig, _messages: &[&str]) -> LongestMatch {
         let messages_vec: Vec<String> = _messages.iter().map(|s| s.to_string()).collect();
         let mut inner: Vec<Vec<Segment>> = Vec::with_capacity(messages_vec.len());
 
         for i in 0..messages_vec.len() {
             let msg = &messages_vec[i];
 
-            // Fallback: find multiple non-overlapping occurrences of previous
-            // messages inside `msg` using a simple weighted-interval DP. We
-            // enumerate all matches (start, end, weight=len) and pick the set
-            // that maximizes total covered bytes.
+            // find multiple non-overlapping occurrences of previous
+            // messages inside `msg` using a simple weighted-interval DP.
             let mut matches: Vec<(usize, usize, usize, usize)> = Vec::new();
             // (start, end, len, message_idx)
             for (j, cand) in messages_vec.iter().enumerate().take(i) {
                 if cand.is_empty() { continue; }
+                if cand.len() < config.min_match_len { continue; }
+                if let Some(lookback) = config.lookback {
+                    if i.saturating_sub(j) > lookback { continue; }
+                }
                 let mut start_pos = 0usize;
                 while let Some(pos) = msg[start_pos..].find(cand) {
                     let abs = start_pos + pos;
@@ -130,7 +149,7 @@ impl CopyForward for LongestMatch {
             }
         }
 
-        LongestMatch { inner, messages: messages_vec }
+        LongestMatch { inner, messages: messages_vec, config: config.clone() }
     }
 
     fn segments(&self) -> Vec<Vec<Segment>> {
@@ -159,6 +178,28 @@ impl CopyForward for LongestMatch {
         }
 
         out
+    }
+
+    /// Convenience constructor using default configuration.
+    pub fn from_messages(messages: &[&str]) -> LongestMatch {
+        LongestMatch::with_config(&LongestMatchConfig::default(), messages)
+    }
+}
+
+impl CopyForward for LongestMatch {
+    fn from_messages(messages: &[&str]) -> LongestMatch {
+        LongestMatch::from_messages(messages)
+    }
+
+    fn segments(&self) -> Vec<Vec<Segment>> {
+        self.segments()
+    }
+
+    fn render_with<F>(&self, replacer: F) -> Vec<String>
+    where
+        F: FnMut(usize, usize, usize, &str) -> String,
+    {
+        self.render_with(replacer)
     }
 }
 
