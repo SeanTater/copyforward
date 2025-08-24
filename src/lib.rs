@@ -1,3 +1,4 @@
+#![allow(unsafe_op_in_unsafe_fn)]
 pub mod fixture;
 pub mod python_bindings;
 
@@ -54,8 +55,7 @@ impl CopyForward for LongestMatch {
             // that maximizes total covered bytes.
             let mut matches: Vec<(usize, usize, usize, usize)> = Vec::new();
             // (start, end, len, message_idx)
-            for j in 0..i {
-                let cand = &messages_vec[j];
+            for (j, cand) in messages_vec.iter().enumerate().take(i) {
                 if cand.is_empty() { continue; }
                 let mut start_pos = 0usize;
                 while let Some(pos) = msg[start_pos..].find(cand) {
@@ -74,7 +74,7 @@ impl CopyForward for LongestMatch {
                 // compute p[k] = largest index < k that doesn't overlap with k
                 let mut p = vec![0usize; m];
                 for k in 0..m {
-                    let (s_k, e_k, _, _) = matches[k];
+                    let (s_k, _e_k, _, _) = matches[k];
                     let mut pi = None;
                     for t in (0..k).rev() {
                         if matches[t].1 <= s_k { pi = Some(t); break; }
@@ -95,15 +95,18 @@ impl CopyForward for LongestMatch {
                 let mut chosen = Vec::new();
                 let mut k = m.checked_sub(1);
                 while let Some(idx) = k {
-                    let take = if idx==0 { dp[idx] > 0 } else { dp[idx] != dp[idx-1] };
+                    let take = if idx == 0 { dp[idx] > 0 } else { dp[idx] != dp[idx - 1] };
                     if take {
                         chosen.push(idx);
-                        k = p[idx].checked_sub(0);
-                        if let Some(pk) = p[idx].checked_sub(0) {
-                            if pk==usize::MAX { k = None; } else { k = Some(pk); }
-                        } else { k = None; }
+                        if p[idx] == usize::MAX {
+                            break;
+                        } else {
+                            k = Some(p[idx]);
+                        }
+                    } else if idx == 0 {
+                        break;
                     } else {
-                        if idx==0 { k = None; } else { k = Some(idx-1); }
+                        k = Some(idx - 1);
                     }
                 }
                 chosen.reverse();
@@ -140,7 +143,7 @@ impl CopyForward for LongestMatch {
     {
         // Resolve a reference by slicing the original message text.
         let mut out = Vec::with_capacity(self.inner.len());
-        for (i, segs) in self.inner.iter().enumerate() {
+        for segs in self.inner.iter() {
             let mut s = String::new();
             for seg in segs {
                 match seg {
@@ -202,7 +205,7 @@ mod tests {
         let cf = LongestMatch::from_messages(msgs);
 
         let rendered = cf.render_with(|m_idx, start, len, referenced_text| {
-            format!("<ref {}:{}+{}='{}'>", m_idx, start, len, referenced_text)
+            format!("<ref {m_idx}:{start}+{len}='{referenced_text}'>")
         });
 
         assert_eq!(rendered, vec!["foo".to_string(), "<ref 0:0+3='foo'> bar".to_string()]);
@@ -242,25 +245,25 @@ mod tests {
         }).sum();
 
         if deduped as f64 > (orig as f64) * 0.1 {
-            eprintln!("Dedup insufficient: orig={} bytes, deduped={} bytes ({}%)", orig, deduped, deduped as f64 / orig as f64 * 100.0);
+            eprintln!("Dedup insufficient: orig={orig} bytes, deduped={deduped} bytes ({:.2}% )", deduped as f64 / orig as f64 * 100.0);
             eprintln!("First 5 original messages:");
             for (i, m) in msgs.iter().take(5).enumerate() {
                 eprintln!("[{}] len={}: {}", i, m.len(), &m.chars().take(120).collect::<String>());
             }
             eprintln!("First 10 segments:");
             for (i, v) in segs.iter().enumerate().take(10) {
-                eprint!("[{}]: ", i);
+                eprint!("[{i}]: ");
                 for seg in v {
                     match seg {
                         Segment::Literal(s) => eprint!("L(len={}) ", s.len()),
-                        Segment::Reference { message_idx, start, len } => eprint!("R({}:{}+{} ) ", message_idx, start, len),
+                        Segment::Reference { message_idx, start, len } => eprint!("R({message_idx}:{start}+{len} ) "),
                     }
                 }
-                eprintln!("");
+                eprintln!();
             }
             eprintln!("First 10 rendered messages:");
             for (i, m) in cf.render_with(|_, _, _, _| "...".to_string()).iter().take(10).enumerate() {
-                eprintln!("[{}] {}", i, m);
+                eprintln!("[{i}] {m}");
             }
         }
 
