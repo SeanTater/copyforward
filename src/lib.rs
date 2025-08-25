@@ -211,6 +211,173 @@ impl CopyForward for GreedySubstring {
     }
 }
 
+/// Alternative implementation using rolling (u64) hashes for k-mer lookup
+pub struct HashedGreedy {
+    inner: Vec<Vec<Segment>>,
+    messages: Vec<String>,
+    pub config: GreedySubstringConfig,
+}
+
+impl HashedGreedy {
+    /// Build using an explicit configuration. This implementation builds
+    /// a hash table of all k-mers (k = `min_match_len`) from previous
+    /// messages and uses it to find candidate match starts quickly.
+    pub fn with_config(config: &GreedySubstringConfig, _messages: &[&str]) -> HashedGreedy {
+        use std::collections::HashMap;
+
+        let messages_vec: Vec<String> = _messages.iter().map(|s| s.to_string()).collect();
+        let mut inner: Vec<Vec<Segment>> = Vec::with_capacity(messages_vec.len());
+
+        // Helper: compute rolling prefix hashes and powers (base 257) for a byte string
+        fn prefix_hashes(s: &[u8], base: u64) -> (Vec<u64>, Vec<u64>) {
+            let mut h = Vec::with_capacity(s.len() + 1);
+            let mut p = Vec::with_capacity(s.len() + 1);
+            h.push(0);
+            p.push(1);
+            for &b in s {
+                let last_h: u64 = *h.last().unwrap();
+                h.push(last_h.wrapping_mul(base).wrapping_add(b as u64));
+                let last_p: u64 = *p.last().unwrap();
+                p.push(last_p.wrapping_mul(base));
+            }
+            (h, p)
+        }
+
+        // Hash substring [l, r) using prefix info
+        fn range_hash(h: &Vec<u64>, p: &Vec<u64>, l: usize, r: usize) -> u64 {
+            h[r].wrapping_sub(h[l].wrapping_mul(p[r - l]))
+        }
+
+        let base: u64 = 257;
+
+        // Precompute prefix hashes for all messages so substring hashes are O(1)
+        let prefixes: Vec<(Vec<u64>, Vec<u64>)> = messages_vec.iter().map(|m| prefix_hashes(m.as_bytes(), base)).collect();
+
+        for i in 0..messages_vec.len() {
+            let msg = &messages_vec[i];
+            let bytes = msg.as_bytes();
+
+            // Build hash table of k-mers from all previous messages
+            let k = config.min_match_len;
+            let mut table: HashMap<u64, Vec<(usize, usize)>> = HashMap::new(); // hash -> list of (msg_idx, start)
+            if k > 0 {
+                for (j, prev) in messages_vec.iter().enumerate().take(i) {
+                    if prev.is_empty() { continue; }
+                    if let Some(lookback) = config.lookback {
+                        if i.saturating_sub(j) > lookback { continue; }
+                    }
+                    let (ref_h, ref_p) = &prefixes[j];
+                    if prev.len() >= k {
+                        for start in 0..=(prev.len() - k) {
+                            let h = range_hash(ref_h, ref_p, start, start + k);
+                            table.entry(h).or_default().push((j, start));
+                        }
+                    }
+                }
+            }
+
+            let mut cursor = 0usize;
+            let mut segs = Vec::new();
+
+            while cursor < bytes.len() {
+                let mut best_match: Option<(usize, usize, usize)> = None; // (len, msg_idx, ref_start)
+
+                if bytes.len() >= cursor + k && k > 0 {
+                    // compute hash of current k-mer
+                    let (cur_h, cur_p) = &prefixes[i];
+                    let key = range_hash(cur_h, cur_p, cursor, cursor + k);
+                    if let Some(cands) = table.get(&key) {
+                        // Extend each candidate to find maximal match
+                        for &(midx, ref_start) in cands.iter() {
+                            let prev = &messages_vec[midx];
+                            let prev_bytes = prev.as_bytes();
+                            // already matched k bytes
+                            let mut match_len = k;
+                            while cursor + match_len < bytes.len() && ref_start + match_len < prev_bytes.len()
+                                && bytes[cursor + match_len] == prev_bytes[ref_start + match_len] {
+                                match_len += 1;
+                            }
+                            if best_match.is_none() || match_len > best_match.unwrap().0 {
+                                best_match = Some((match_len, midx, ref_start));
+                            }
+                        }
+                    }
+                }
+
+                if let Some((match_len, midx, ref_start)) = best_match {
+                    segs.push(Segment::Reference { message_idx: midx, start: ref_start, len: match_len });
+                    cursor += match_len;
+                } else {
+                    // fallback: grow literal until next potential k-mer match
+                    let mut literal_end = cursor + 1;
+                    while literal_end < bytes.len() {
+                        if bytes.len() >= literal_end + k && k > 0 {
+                            let (cur_h, cur_p) = &prefixes[i];
+                            let key = range_hash(cur_h, cur_p, literal_end, literal_end + k);
+                            if table.contains_key(&key) { break; }
+                        }
+                        literal_end += 1;
+                    }
+                    segs.push(Segment::Literal(msg[cursor..literal_end].to_string()));
+                    cursor = literal_end;
+                }
+            }
+
+            inner.push(segs);
+        }
+
+        HashedGreedy { inner, messages: messages_vec, config: config.clone() }
+    }
+
+    fn segments(&self) -> Vec<Vec<Segment>> {
+        self.inner.clone()
+    }
+
+    fn render_with<F>(&self, mut _replacer: F) -> Vec<String>
+    where
+        F: FnMut(usize, usize, usize, &str) -> String,
+    {
+        let mut out = Vec::with_capacity(self.inner.len());
+        for segs in self.inner.iter() {
+            let mut s = String::new();
+            for seg in segs {
+                match seg {
+                    Segment::Literal(l) => s.push_str(l),
+                    Segment::Reference { message_idx, start, len } => {
+                        let ref_text = &self.messages[*message_idx][*start..(*start + *len)];
+                        let replaced = _replacer(*message_idx, *start, *len, ref_text);
+                        s.push_str(&replaced);
+                    }
+                }
+            }
+            out.push(s);
+        }
+        out
+    }
+
+    /// Convenience constructor using default configuration.
+    pub fn from_messages(messages: &[&str]) -> HashedGreedy {
+        HashedGreedy::with_config(&GreedySubstringConfig::default(), messages)
+    }
+}
+
+impl CopyForward for HashedGreedy {
+    fn from_messages(messages: &[&str]) -> HashedGreedy {
+        HashedGreedy::from_messages(messages)
+    }
+
+    fn segments(&self) -> Vec<Vec<Segment>> {
+        self.segments()
+    }
+
+    fn render_with<F>(&self, replacer: F) -> Vec<String>
+    where
+        F: FnMut(usize, usize, usize, &str) -> String,
+    {
+        self.render_with(replacer)
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -462,6 +629,23 @@ mod tests {
         });
         assert!(has_meaningful_matches, "Should find meaningful phrase matches across conversation");
     }
+
+    #[test]
+    fn hashed_greedy_matches_greedy_on_small_inputs() {
+        let msgs = &[
+            "hello world everyone",
+            "world peace and harmony",
+            "hello world peace and joy for everyone"
+        ];
+
+        let refs: Vec<&str> = msgs.iter().copied().collect();
+        let config = GreedySubstringConfig { min_match_len: 10, lookback: None };
+        let g = GreedySubstring::with_config(&config, &refs);
+        let h = HashedGreedy::with_config(&config, &refs);
+
+        let rendered_g = g.render_with(|_, _, _, text| text.to_string());
+        let rendered_h = h.render_with(|_, _, _, text| text.to_string());
+
+        assert_eq!(rendered_g, rendered_h, "HashedGreedy should render same as GreedySubstring for sample input");
+    }
 }
-
-
