@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use copyforward::{CopyForward, LongestMatch};
+use copyforward::{CopyForward, GreedySubstring};
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 
@@ -62,7 +62,7 @@ fn bench_algorithms(c: &mut Criterion) {
                 &msg_refs,
                 |b, m| {
                     b.iter(|| {
-                        let cf = LongestMatch::from_messages(m);
+                        let cf = GreedySubstring::from_messages(m);
                         // compute sizes
                         let orig: usize = m.iter().map(|s| s.len()).sum();
                         let segs = cf.segments();

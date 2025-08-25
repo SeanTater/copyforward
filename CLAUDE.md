@@ -17,14 +17,14 @@
 
 #### 1. Main Library (`src/lib.rs`) - 317 lines
 - **`CopyForward` trait**: Generic interface for copy-forward algorithms
-- **`LongestMatch` struct**: Main implementation using weighted-interval dynamic programming
-- **`LongestMatchConfig`**: Configuration with `min_match_len` and `lookback` window
+- **`GreedySubstring` struct**: Main implementation using weighted-interval dynamic programming
+- **`GreedySubstringConfig`**: Configuration with `min_match_len` and `lookback` window
 - **`Segment` enum**: Represents text as `Literal(String)` or `Reference{message_idx, start, len}`
 
 **Key Algorithm**: Uses dynamic programming to find optimal non-overlapping substring matches across previous messages, similar to weighted interval scheduling.
 
 #### 2. Python Bindings (`src/python_bindings.rs`) - 46 lines
-- **`PyLongestMatch`**: Python wrapper exposing the Rust implementation
+- **`PyGreedySubstring`**: Python wrapper exposing the Rust implementation
 - Supports keyword arguments: `min_match_len`, `lookback`
 - Methods: `segments()` (returns formatted strings), `render_with_static()`
 
@@ -76,7 +76,7 @@ pre-commit run --all-files
 
 ## Key Algorithms & Data Structures
 
-### LongestMatch Algorithm
+### GreedySubstring Algorithm
 1. **Match Detection**: Find all occurrences of previous messages in current message
 2. **Weighted Interval DP**: Select optimal non-overlapping matches to maximize saved bytes
 3. **Segment Construction**: Build output as alternating `Literal` and `Reference` segments
@@ -97,20 +97,20 @@ pre-commit run --all-files
 ```rust
 // Basic usage
 let msgs = &["hello", "hello world"];
-let cf = LongestMatch::from_messages(msgs);
+let cf = GreedySubstring::from_messages(msgs);
 let segments = cf.segments();
 
 // With configuration
-let cfg = LongestMatchConfig { min_match_len: 4, lookback: Some(10) };
-let cf = LongestMatch::with_config(&cfg, msgs);
+let cfg = GreedySubstringConfig { min_match_len: 4, lookback: Some(10) };
+let cf = GreedySubstring::with_config(&cfg, msgs);
 ```
 
 ## Python API Usage
 ```python
-from copyforward import PyLongestMatch
+from copyforward import PyGreedySubstring
 
 msgs = ["hello", "hello world"]
-cf = PyLongestMatch(msgs, min_match_len=4, lookback=None)
+cf = PyGreedySubstring(msgs, min_match_len=4, lookback=None)
 print(cf.segments())              # Get segment representation
 print(cf.render_with_static("...")) # Render with replacements
 ```
@@ -136,7 +136,7 @@ print(cf.render_with_static("...")) # Render with replacements
 ## File Structure Summary
 ```
 src/
-├── lib.rs              # Main library and LongestMatch implementation
+├── lib.rs              # Main library and GreedySubstring implementation
 ├── python_bindings.rs  # PyO3 Python interface
 ├── fixture.rs          # Test data generation
 └── main.rs            # Binary entry point (if needed)

@@ -10,9 +10,9 @@ Build (recommended):
 Example usage:
 
 ```py
-from copyforward_py import PyLongestMatch
-msgs = ["a", "a b"]
-cf = PyLongestMatch(msgs)
+from copyforward_py import PyGreedySubstring
+msgs = ["hello world", "hello world today"]
+cf = PyGreedySubstring(msgs, min_match_len=10)
 print(cf.segments())
 print(cf.render_with_static("..."))
 ```

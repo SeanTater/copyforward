@@ -35,31 +35,31 @@ pub trait CopyForward {
     }
 }
 
-/// Example implementation that uses a longest-match strategy.
-pub struct LongestMatch {
+/// Implementation that uses a greedy substring matching strategy.
+pub struct GreedySubstring {
     inner: Vec<Vec<Segment>>,
     messages: Vec<String>,
-    pub config: LongestMatchConfig,
+    pub config: GreedySubstringConfig,
 }
 
-/// Configuration for `LongestMatch` algorithm.
+/// Configuration for `GreedySubstring` algorithm.
 #[derive(Debug, Clone)]
-pub struct LongestMatchConfig {
+pub struct GreedySubstringConfig {
     pub min_match_len: usize,
     /// lookback window: only consider previous `lookback` messages
     /// when matching. `None` means consider all previous messages.
     pub lookback: Option<usize>,
 }
 
-impl Default for LongestMatchConfig {
+impl Default for GreedySubstringConfig {
     fn default() -> Self {
-        LongestMatchConfig { min_match_len: 4, lookback: None }
+        GreedySubstringConfig { min_match_len: 4, lookback: None }
     }
 }
 
-impl LongestMatch {
+impl GreedySubstring {
     /// Build using an explicit configuration.
-    pub fn with_config(config: &LongestMatchConfig, _messages: &[&str]) -> LongestMatch {
+    pub fn with_config(config: &GreedySubstringConfig, _messages: &[&str]) -> GreedySubstring {
         let messages_vec: Vec<String> = _messages.iter().map(|s| s.to_string()).collect();
         let mut inner: Vec<Vec<Segment>> = Vec::with_capacity(messages_vec.len());
 
@@ -157,7 +157,7 @@ impl LongestMatch {
             inner.push(segs);
         }
 
-        LongestMatch { inner, messages: messages_vec, config: config.clone() }
+        GreedySubstring { inner, messages: messages_vec, config: config.clone() }
     }
 
     fn segments(&self) -> Vec<Vec<Segment>> {
@@ -189,14 +189,14 @@ impl LongestMatch {
     }
 
     /// Convenience constructor using default configuration.
-    pub fn from_messages(messages: &[&str]) -> LongestMatch {
-        LongestMatch::with_config(&LongestMatchConfig::default(), messages)
+    pub fn from_messages(messages: &[&str]) -> GreedySubstring {
+        GreedySubstring::with_config(&GreedySubstringConfig::default(), messages)
     }
 }
 
-impl CopyForward for LongestMatch {
-    fn from_messages(messages: &[&str]) -> LongestMatch {
-        LongestMatch::from_messages(messages)
+impl CopyForward for GreedySubstring {
+    fn from_messages(messages: &[&str]) -> GreedySubstring {
+        GreedySubstring::from_messages(messages)
     }
 
     fn segments(&self) -> Vec<Vec<Segment>> {
@@ -222,8 +222,8 @@ mod tests {
     #[test]
     fn render_with_lambda_replaces_references() {
         let msgs = &["hello world", "hello world today"];
-        let config = LongestMatchConfig { min_match_len: 10, lookback: None };
-        let cf = LongestMatch::with_config(&config, msgs);
+        let config = GreedySubstringConfig { min_match_len: 10, lookback: None };
+        let cf = GreedySubstring::with_config(&config, msgs);
 
         let rendered = cf.render_with(|m_idx, start, len, referenced_text| {
             format!("<ref {m_idx}:{start}+{len}='{referenced_text}'>")
@@ -248,7 +248,7 @@ mod tests {
         }
 
         let refs: Vec<&str> = msgs.iter().map(|s| s.as_str()).collect();
-        let cf = LongestMatch::from_messages(&refs);
+        let cf = GreedySubstring::from_messages(&refs);
         let segs = cf.segments();
         let deduped: usize = segs.iter().flat_map(|v| v.iter()).map(|seg| match seg {
             Segment::Literal(s) => s.len(),
@@ -291,8 +291,8 @@ mod tests {
             "hello world peace and joy for everyone"
         ];
         
-        let config = LongestMatchConfig { min_match_len: 10, lookback: None };
-        let cf = LongestMatch::with_config(&config, msgs);
+        let config = GreedySubstringConfig { min_match_len: 10, lookback: None };
+        let cf = GreedySubstring::with_config(&config, msgs);
         let segs = cf.segments();
         
         // Message 2 should reference parts of both previous messages
@@ -317,8 +317,8 @@ mod tests {
             "The quick brown fox is amazing and the lazy dog sleeps"
         ];
         
-        let config = LongestMatchConfig { min_match_len: 10, lookback: None };
-        let cf = LongestMatch::with_config(&config, msgs);
+        let config = GreedySubstringConfig { min_match_len: 10, lookback: None };
+        let cf = GreedySubstring::with_config(&config, msgs);
         let segs = cf.segments();
         
         // Should prefer longer matches over shorter ones
@@ -341,8 +341,8 @@ mod tests {
             "programming and programming languages are great for programming"
         ];
         
-        let config = LongestMatchConfig { min_match_len: 11, lookback: None }; // "programming"
-        let cf = LongestMatch::with_config(&config, msgs);
+        let config = GreedySubstringConfig { min_match_len: 11, lookback: None }; // "programming"
+        let cf = GreedySubstring::with_config(&config, msgs);
         let segs = cf.segments();
         
         // Greedy algorithm should select non-overlapping matches efficiently
@@ -363,8 +363,8 @@ mod tests {
         ];
         
         // Test with realistic minimum match length
-        let config = LongestMatchConfig { min_match_len: 15, lookback: None };
-        let cf = LongestMatch::with_config(&config, msgs);
+        let config = GreedySubstringConfig { min_match_len: 15, lookback: None };
+        let cf = GreedySubstring::with_config(&config, msgs);
         let segs = cf.segments();
         
         // All references should meet minimum length
@@ -390,8 +390,8 @@ mod tests {
             "Yes, the weather is wonderful and I love these sunny days"
         ];
         
-        let config = LongestMatchConfig { min_match_len: 12, lookback: None };
-        let cf = LongestMatch::with_config(&config, msgs);
+        let config = GreedySubstringConfig { min_match_len: 12, lookback: None };
+        let cf = GreedySubstring::with_config(&config, msgs);
         let segs = cf.segments();
         
         // Should find "the weather is wonderful" from middle of msg[0] and msg[1]
@@ -412,8 +412,8 @@ mod tests {
             "artificial intelligence powers machine learning and machine learning improves artificial intelligence"
         ];
         
-        let config = LongestMatchConfig { min_match_len: 16, lookback: None };
-        let cf = LongestMatch::with_config(&config, msgs);
+        let config = GreedySubstringConfig { min_match_len: 16, lookback: None };
+        let cf = GreedySubstring::with_config(&config, msgs);
         let segs = cf.segments();
         
         // Should efficiently handle repeated long substrings
@@ -436,8 +436,8 @@ mod tests {
             ">>> Let's implement the new authentication system using JWT tokens for security\n>> I agree, but what about token expiration policies?\n> Good point about token expiration policies. We should also consider secure storage\nAll these points about JWT tokens for security and token expiration policies are valid"
         ];
         
-        let config = LongestMatchConfig { min_match_len: 15, lookback: None };
-        let cf = LongestMatch::with_config(&config, msgs);
+        let config = GreedySubstringConfig { min_match_len: 15, lookback: None };
+        let cf = GreedySubstring::with_config(&config, msgs);
         let segs = cf.segments();
         
         
