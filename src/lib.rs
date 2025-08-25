@@ -5,63 +5,44 @@ pub mod python_bindings;
 // Uses atomics to avoid locking overhead; reset and snapshot helpers
 // allow a small dev binary to collect simple breakdowns.
 pub mod instrumentation {
-    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::cell::Cell;
 
-    pub struct Counters {
-        pub kmers_inserted: AtomicU64,
-        pub table_build_ns: AtomicU64,
-        pub lookup_count: AtomicU64,
-        pub candidates_examined: AtomicU64,
-        pub chars_compared: AtomicU64,
-        pub extension_ns: AtomicU64,
+    thread_local! {
+        static KMERS_INSERTED: Cell<u64> = Cell::new(0);
+        static TABLE_BUILD_NS: Cell<u64> = Cell::new(0);
+        static LOOKUP_COUNT: Cell<u64> = Cell::new(0);
+        static CANDIDATES_EXAMINED: Cell<u64> = Cell::new(0);
+        static CHARS_COMPARED: Cell<u64> = Cell::new(0);
+        static EXTENSION_NS: Cell<u64> = Cell::new(0);
     }
 
-    impl Counters {
-        const fn new() -> Counters {
-            Counters {
-                kmers_inserted: AtomicU64::new(0),
-                table_build_ns: AtomicU64::new(0),
-                lookup_count: AtomicU64::new(0),
-                candidates_examined: AtomicU64::new(0),
-                chars_compared: AtomicU64::new(0),
-                extension_ns: AtomicU64::new(0),
-            }
-        }
-
-        pub fn reset(&self) {
-            self.kmers_inserted.store(0, Ordering::Relaxed);
-            self.table_build_ns.store(0, Ordering::Relaxed);
-            self.lookup_count.store(0, Ordering::Relaxed);
-            self.candidates_examined.store(0, Ordering::Relaxed);
-            self.chars_compared.store(0, Ordering::Relaxed);
-            self.extension_ns.store(0, Ordering::Relaxed);
-        }
-
-        pub fn snapshot(&self) -> (u64, u64, u64, u64, u64, u64) {
-            (
-                self.kmers_inserted.load(Ordering::Relaxed),
-                self.table_build_ns.load(Ordering::Relaxed),
-                self.lookup_count.load(Ordering::Relaxed),
-                self.candidates_examined.load(Ordering::Relaxed),
-                self.chars_compared.load(Ordering::Relaxed),
-                self.extension_ns.load(Ordering::Relaxed),
-            )
-        }
+    pub fn reset_counters() {
+        KMERS_INSERTED.with(|c| c.set(0));
+        TABLE_BUILD_NS.with(|c| c.set(0));
+        LOOKUP_COUNT.with(|c| c.set(0));
+        CANDIDATES_EXAMINED.with(|c| c.set(0));
+        CHARS_COMPARED.with(|c| c.set(0));
+        EXTENSION_NS.with(|c| c.set(0));
     }
 
-    static CTRS: Counters = Counters::new();
+    pub fn counters_snapshot() -> (u64, u64, u64, u64, u64, u64) {
+        let km = KMERS_INSERTED.with(|c| c.get());
+        let tb = TABLE_BUILD_NS.with(|c| c.get());
+        let lk = LOOKUP_COUNT.with(|c| c.get());
+        let ce = CANDIDATES_EXAMINED.with(|c| c.get());
+        let cc = CHARS_COMPARED.with(|c| c.get());
+        let ex = EXTENSION_NS.with(|c| c.get());
+        (km, tb, lk, ce, cc, ex)
+    }
 
-    pub fn reset_counters() { CTRS.reset(); }
-    pub fn counters_snapshot() -> (u64, u64, u64, u64, u64, u64) { CTRS.snapshot() }
-
-    // helper functions used by algorithms
-    pub fn add_kmers(n: u64) { CTRS.kmers_inserted.fetch_add(n, Ordering::Relaxed); }
-    pub fn add_table_build_ns(n: u64) { CTRS.table_build_ns.fetch_add(n, Ordering::Relaxed); }
-    pub fn add_lookup(n: u64) { CTRS.lookup_count.fetch_add(n, Ordering::Relaxed); }
-    pub fn add_candidates(n: u64) { CTRS.candidates_examined.fetch_add(n, Ordering::Relaxed); }
-    pub fn add_chars(n: u64) { CTRS.chars_compared.fetch_add(n, Ordering::Relaxed); }
-    pub fn add_extension_ns(n: u64) { CTRS.extension_ns.fetch_add(n, Ordering::Relaxed); }
+    pub fn add_kmers(n: u64) { KMERS_INSERTED.with(|c| c.set(c.get().wrapping_add(n))); }
+    pub fn add_table_build_ns(n: u64) { TABLE_BUILD_NS.with(|c| c.set(c.get().wrapping_add(n))); }
+    pub fn add_lookup(n: u64) { LOOKUP_COUNT.with(|c| c.set(c.get().wrapping_add(n))); }
+    pub fn add_candidates(n: u64) { CANDIDATES_EXAMINED.with(|c| c.set(c.get().wrapping_add(n))); }
+    pub fn add_chars(n: u64) { CHARS_COMPARED.with(|c| c.set(c.get().wrapping_add(n))); }
+    pub fn add_extension_ns(n: u64) { EXTENSION_NS.with(|c| c.set(c.get().wrapping_add(n))); }
 }
+
 
 
 #[derive(Debug, Clone, PartialEq, Eq)]
