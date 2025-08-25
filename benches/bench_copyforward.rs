@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use copyforward::{CopyForward, GreedySubstring};
+use copyforward::{CopyForward, GreedySubstring, HashedGreedy};
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 
@@ -57,12 +57,33 @@ fn bench_algorithms(c: &mut Criterion) {
             let msgs = generate_thread(&mut rng, msg_count, base_s);
             let msg_refs: Vec<&str> = msgs.iter().map(|s| s.as_str()).collect();
 
+            // GreedySubstring
             group.bench_with_input(
-                BenchmarkId::from_parameter(format!("msgs{}_base{}", msg_count, base_s)),
+                BenchmarkId::from_parameter(format!("greedy_msgs{}_base{}", msg_count, base_s)),
                 &msg_refs,
                 |b, m| {
                     b.iter(|| {
                         let cf = GreedySubstring::from_messages(m);
+                        // compute sizes
+                        let orig: usize = m.iter().map(|s| s.len()).sum();
+                        let segs = cf.segments();
+                        let deduped: usize = segs.iter().flat_map(|v| v.iter()).map(|seg| match seg {
+                            copyforward::Segment::Literal(s) => s.len(),
+                            copyforward::Segment::Reference { .. } => 3, // replacement approx
+                        }).sum();
+                        // ensure at least some deduping happened
+                        assert!(deduped as f64 <= (orig as f64) * 0.95);
+                    })
+                },
+            );
+
+            // HashedGreedy
+            group.bench_with_input(
+                BenchmarkId::from_parameter(format!("hashed_msgs{}_base{}", msg_count, base_s)),
+                &msg_refs,
+                |b, m| {
+                    b.iter(|| {
+                        let cf = HashedGreedy::from_messages(m);
                         // compute sizes
                         let orig: usize = m.iter().map(|s| s.len()).sum();
                         let segs = cf.segments();
@@ -83,5 +104,3 @@ fn bench_algorithms(c: &mut Criterion) {
 
 criterion_group!(benches, bench_algorithms);
 criterion_main!(benches);
-
-
