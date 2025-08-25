@@ -48,8 +48,8 @@ fn bench_algorithms(c: &mut Criterion) {
     let mut group = c.benchmark_group("copyforward_threaded");
 
     // parameters: number of messages and base size in sentences
-    let message_counts = [10usize, 100, 1000];
-    let base_sentences = [10usize, 100, 1000];
+    let message_counts = [10usize, 100, 250];
+    let base_sentences = [10usize, 100, 250];
 
     for &msg_count in message_counts.iter() {
         for &base_s in base_sentences.iter() {
