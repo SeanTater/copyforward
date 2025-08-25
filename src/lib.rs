@@ -152,11 +152,15 @@ impl GreedySubstring {
                         
                         // Extend the match as far as possible
                         let mut match_len = 0;
+                        let ext_t0 = std::time::Instant::now();
                         while cursor + match_len < msg.len() 
                             && ref_start + match_len < prev_msg.len()
                             && msg.as_bytes()[cursor + match_len] == prev_msg.as_bytes()[ref_start + match_len] {
                             match_len += 1;
+                            crate::instrumentation::add_chars(1);
                         }
+                        let ext_dur = ext_t0.elapsed().as_nanos() as u64;
+                        crate::instrumentation::add_extension_ns(ext_dur);
                         
                         // Keep the longest match for this position
                         if match_len >= config.min_match_len {
@@ -329,14 +333,21 @@ impl HashedGreedy {
 
             // Insert k-mers from previous message (i-1) so table always contains all prior k-mers
             if k > 0 && i > 0 {
+                use std::time::Instant;
+                let t0 = Instant::now();
                 let j = i - 1;
                 if messages_vec[j].len() >= k {
                     let (ref_h, ref_p) = &prefixes[j];
+                    let mut added = 0u64;
                     for start in 0..=(messages_vec[j].len() - k) {
                         let h = range_hash(ref_h, ref_p, start, start + k);
                         table.entry(h).or_default().push((j, start));
+                        added += 1;
                     }
+                    crate::instrumentation::add_kmers(added);
                 }
+                let dur = t0.elapsed().as_nanos() as u64;
+                crate::instrumentation::add_table_build_ns(dur);
             }
 
             let mut cursor = 0usize;
@@ -349,17 +360,23 @@ impl HashedGreedy {
                     // compute hash of current k-mer
                     let (cur_h, cur_p) = &prefixes[i];
                     let key = range_hash(cur_h, cur_p, cursor, cursor + k);
+                    crate::instrumentation::add_lookup(1);
                     if let Some(cands) = table.get(&key) {
                         // Extend each candidate to find maximal match
                         for &(midx, ref_start) in cands.iter() {
+                            crate::instrumentation::add_candidates(1);
                             let prev = &messages_vec[midx];
                             let prev_bytes = prev.as_bytes();
                             // already matched k bytes
                             let mut match_len = k;
+                            let ext_t0 = std::time::Instant::now();
                             while cursor + match_len < bytes.len() && ref_start + match_len < prev_bytes.len()
                                 && bytes[cursor + match_len] == prev_bytes[ref_start + match_len] {
                                 match_len += 1;
+                                crate::instrumentation::add_chars(1);
                             }
+                            let ext_dur = ext_t0.elapsed().as_nanos() as u64;
+                            crate::instrumentation::add_extension_ns(ext_dur);
                             if best_match.is_none() || match_len > best_match.unwrap().0 {
                                 best_match = Some((match_len, midx, ref_start));
                             }
