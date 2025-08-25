@@ -1,7 +1,7 @@
 use std::time::Instant;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
-use copyforward::{GreedySubstring, HashedGreedy};
+use copyforward::{GreedySubstring, HashedGreedy, CopyForward};
 
 fn make_base_post(rng: &mut impl Rng, sentences: usize) -> String {
     let mut s = String::new();
@@ -54,8 +54,8 @@ fn run_case(msgs: &[&str]) {
     println!("HashedGreedy: build_time={:?} kmers={} table_ns={} lookups={} candidates={} chars={} ext_ns={}", dur_h, km, tb, lk, ce, cc, ex);
 
     // Render to ensure no lazy work remains
-    let _rg = g.render_with(|_, _, _, s| s.to_string());
-    let _rh = h.render_with(|_, _, _, s| s.to_string());
+    let _rg = CopyForward::render_with(&g, |_, _, _, s| s.to_string());
+    let _rh = CopyForward::render_with(&h, |_, _, _, s| s.to_string());
 }
 
 fn main() {
