@@ -253,25 +253,26 @@ impl HashedGreedy {
         // Precompute prefix hashes for all messages so substring hashes are O(1)
         let prefixes: Vec<(Vec<u64>, Vec<u64>)> = messages_vec.iter().map(|m| prefix_hashes(m.as_bytes(), base)).collect();
 
+        // Prepare incremental k-mer table to avoid rebuilding per message.
+        let k = config.min_match_len;
+        // Compute total approximate number of k-mers to reserve capacity
+        let total_kmers: usize = if k > 0 {
+            messages_vec.iter().map(|m| if m.len() >= k { m.len() - k + 1 } else { 0 }).sum()
+        } else { 0 };
+        let mut table: HashMap<u64, Vec<(usize, usize)>> = HashMap::with_capacity((total_kmers / 2).max(16));
+        // We'll add k-mers incrementally: before processing message i we insert k-mers from message i-1.
         for i in 0..messages_vec.len() {
             let msg = &messages_vec[i];
             let bytes = msg.as_bytes();
 
-            // Build hash table of k-mers from all previous messages
-            let k = config.min_match_len;
-            let mut table: HashMap<u64, Vec<(usize, usize)>> = HashMap::new(); // hash -> list of (msg_idx, start)
-            if k > 0 {
-                for (j, prev) in messages_vec.iter().enumerate().take(i) {
-                    if prev.is_empty() { continue; }
-                    if let Some(lookback) = config.lookback {
-                        if i.saturating_sub(j) > lookback { continue; }
-                    }
+            // Insert k-mers from previous message (i-1) so table always contains all prior k-mers
+            if k > 0 && i > 0 {
+                let j = i - 1;
+                if messages_vec[j].len() >= k {
                     let (ref_h, ref_p) = &prefixes[j];
-                    if prev.len() >= k {
-                        for start in 0..=(prev.len() - k) {
-                            let h = range_hash(ref_h, ref_p, start, start + k);
-                            table.entry(h).or_default().push((j, start));
-                        }
+                    for start in 0..=(messages_vec[j].len() - k) {
+                        let h = range_hash(ref_h, ref_p, start, start + k);
+                        table.entry(h).or_default().push((j, start));
                     }
                 }
             }
