@@ -258,7 +258,31 @@ impl CopyForward for GreedySubstring {
     }
 }
 
-/// Alternative implementation using rolling (u64) hashes for k-mer lookup
+/// Alternative implementation using rolling (u64) hashes for k-mer lookup.
+///
+/// High-level notes:
+/// - We compute polynomial rolling prefix hashes for each message so any
+///   substring hash can be computed in O(1) via: H[r] - H[l]*B^(r-l).
+/// - We index fixed-length k-mers (k = `min_match_len`) from prior messages
+///   into a hash table that maps `hash -> list of (msg_idx, start)`.
+/// - When processing a message we look up the k-mer at the current cursor,
+///   retrieve candidate start positions from the table, and extend each
+///   candidate to find the longest match. We keep the longest match and
+///   advance the cursor by its length. If no match >= k is found we emit a
+///   literal segment.
+///
+/// Implementation details and performance notes:
+/// - `prefix_hashes` builds prefix arrays H and P (powers of the base).
+///   `range_hash(h, p, l, r)` returns the polynomial hash for s[l..r).
+/// - The k-mer table is built incrementally (we insert k-mers from message
+///   i-1 before processing message i) so lookups only reference prior
+///   messages. This avoids rebuilding the entire table per message.
+/// - To speed up extension we compare 8 bytes at a time when possible
+///   (u64 loads), then fall back to byte-by-byte checks for the remainder.
+/// - The main cost is candidate extension: many candidates or lots of
+///   short messages can still produce heavy char-by-char work. Optimizations
+///   such as pre-checking an extra 8-byte word, limiting candidates per key,
+///   or grouping candidates by message can reduce that cost.
 pub struct HashedGreedy {
     inner: Vec<Vec<Segment>>,
     messages: Vec<String>,
@@ -276,6 +300,16 @@ impl HashedGreedy {
         let mut inner: Vec<Vec<Segment>> = Vec::with_capacity(messages_vec.len());
 
         // Helper: compute rolling prefix hashes and powers (base 257) for a byte string
+        //
+        // We build two arrays:
+        // - `h[i]` = polynomial hash of the first `i` bytes (h[0] = 0)
+        // - `p[i]` = base^i (power table)
+        //
+        // With these, the polynomial hash of s[l..r) is:
+        //    hash = h[r] - h[l] * p[r-l]
+        // The implementation uses wrapping arithmetic on u64 which behaves like
+        // arithmetic modulo 2^64; collisions are possible but rare for natural
+        // text and acceptable for our approximate k-mer lookup.
         fn prefix_hashes(s: &[u8], base: u64) -> (Vec<u64>, Vec<u64>) {
             let mut h = Vec::with_capacity(s.len() + 1);
             let mut p = Vec::with_capacity(s.len() + 1);
@@ -290,7 +324,9 @@ impl HashedGreedy {
             (h, p)
         }
 
-        // Hash substring [l, r) using prefix info
+        // Hash substring [l, r) using prefix info (r is exclusive).
+        // Returns the rolling polynomial hash for s[l..r) computed as:
+        //    h[r] - h[l] * p[r-l]
         fn range_hash(h: &Vec<u64>, p: &Vec<u64>, l: usize, r: usize) -> u64 {
             h[r].wrapping_sub(h[l].wrapping_mul(p[r - l]))
         }
