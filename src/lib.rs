@@ -1,6 +1,68 @@
 #![allow(unsafe_op_in_unsafe_fn)]
 pub mod fixture;
 pub mod python_bindings;
+// Lightweight instrumentation for counting hotspots in development.
+// Uses atomics to avoid locking overhead; reset and snapshot helpers
+// allow a small dev binary to collect simple breakdowns.
+pub mod instrumentation {
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    pub struct Counters {
+        pub kmers_inserted: AtomicU64,
+        pub table_build_ns: AtomicU64,
+        pub lookup_count: AtomicU64,
+        pub candidates_examined: AtomicU64,
+        pub chars_compared: AtomicU64,
+        pub extension_ns: AtomicU64,
+    }
+
+    impl Counters {
+        const fn new() -> Counters {
+            Counters {
+                kmers_inserted: AtomicU64::new(0),
+                table_build_ns: AtomicU64::new(0),
+                lookup_count: AtomicU64::new(0),
+                candidates_examined: AtomicU64::new(0),
+                chars_compared: AtomicU64::new(0),
+                extension_ns: AtomicU64::new(0),
+            }
+        }
+
+        pub fn reset(&self) {
+            self.kmers_inserted.store(0, Ordering::Relaxed);
+            self.table_build_ns.store(0, Ordering::Relaxed);
+            self.lookup_count.store(0, Ordering::Relaxed);
+            self.candidates_examined.store(0, Ordering::Relaxed);
+            self.chars_compared.store(0, Ordering::Relaxed);
+            self.extension_ns.store(0, Ordering::Relaxed);
+        }
+
+        pub fn snapshot(&self) -> (u64, u64, u64, u64, u64, u64) {
+            (
+                self.kmers_inserted.load(Ordering::Relaxed),
+                self.table_build_ns.load(Ordering::Relaxed),
+                self.lookup_count.load(Ordering::Relaxed),
+                self.candidates_examined.load(Ordering::Relaxed),
+                self.chars_compared.load(Ordering::Relaxed),
+                self.extension_ns.load(Ordering::Relaxed),
+            )
+        }
+    }
+
+    static CTRS: Counters = Counters::new();
+
+    pub fn reset_counters() { CTRS.reset(); }
+    pub fn counters_snapshot() -> (u64, u64, u64, u64, u64, u64) { CTRS.snapshot() }
+
+    // helper functions used by algorithms
+    pub fn add_kmers(n: u64) { CTRS.kmers_inserted.fetch_add(n, Ordering::Relaxed); }
+    pub fn add_table_build_ns(n: u64) { CTRS.table_build_ns.fetch_add(n, Ordering::Relaxed); }
+    pub fn add_lookup(n: u64) { CTRS.lookup_count.fetch_add(n, Ordering::Relaxed); }
+    pub fn add_candidates(n: u64) { CTRS.candidates_examined.fetch_add(n, Ordering::Relaxed); }
+    pub fn add_chars(n: u64) { CTRS.chars_compared.fetch_add(n, Ordering::Relaxed); }
+    pub fn add_extension_ns(n: u64) { CTRS.extension_ns.fetch_add(n, Ordering::Relaxed); }
+}
+
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Segment {
