@@ -157,7 +157,18 @@ impl GreedySubstring {
                     segs.push(Segment::Reference { message_idx: midx, start: ref_start, len: match_len });
                     cursor += match_len;
                 } else {
-                    // No match found, find the next potential match or end of string
+                    // No match found at the cursor. We now grow a literal segment
+                    // until we find the next position that could start a k-mer
+                    // match (or reach the end of the message). The literal
+                    // growth scans forward until the first byte that could be the
+                    // beginning of a k-mer in any prior message.
+                    //
+                    // This loop is intentionally conservative: it seeks the
+                    // earliest next candidate so we don't skip potential
+                    // references. Optimizations include scanning using a small
+                    // bloom filter of existing starting bytes or pre-indexing
+                    // single-byte occurrence sets, but the simple scan is
+                    // usually adequate and keeps the implementation straightforward.
                     let mut literal_end = cursor + 1;
                     
                     // Extend literal until we find a potential match or reach end
@@ -172,7 +183,10 @@ impl GreedySubstring {
                             for ref_start in 0..prev_msg.len() {
                                 if literal_end >= msg.len() || ref_start >= prev_msg.len() { continue; }
                                 
-                                // Check for potential match
+                                // Quick byte equality test to find a possible
+                                // match start. If the first bytes match, we then
+                                // try to extend to see whether we reach the
+                                // `min_match_len` threshold.
                                 if msg.as_bytes()[literal_end] == prev_msg.as_bytes()[ref_start] {
                                     // Extend to see if it meets minimum length
                                     let mut potential_len = 0;
@@ -350,6 +364,16 @@ impl HashedGreedy {
 
             // Insert k-mers from previous message (i-1) so table always contains all prior k-mers
             if k > 0 && i > 0 {
+                // Insert k-mers from the immediately previous message into the
+                // shared table. We do this incrementally (only inserting
+                // message i-1 before processing message i) to ensure that
+                // lookups only return prior messages' positions.
+                //
+                // Notes for students:
+                // - `table` maps a k-mer hash -> list of (message_index, start).
+                // - We append positions in chronological order; if you later
+                //   want to prefer more recent candidates, iterate from the
+                //   end or sort by message index descending.
                 use std::time::Instant;
                 let t0 = Instant::now();
                 let j = i - 1;
@@ -357,10 +381,13 @@ impl HashedGreedy {
                     let (ref_h, ref_p) = &prefixes[j];
                     let mut added = 0u64;
                     for start in 0..=(messages_vec[j].len() - k) {
+                        // compute hash for substring prev[j][start .. start+k)
                         let h = range_hash(ref_h, ref_p, start, start + k);
+                        // append the (message_index, start) pair to the bucket
                         table.entry(h).or_default().push((j, start));
                         added += 1;
                     }
+                    // instrumentation: how many k-mers were added
                     crate::instrumentation::add_kmers(added);
                 }
                 let dur = t0.elapsed().as_nanos() as u64;
@@ -377,23 +404,63 @@ impl HashedGreedy {
                     // compute hash of current k-mer
                     let (cur_h, cur_p) = &prefixes[i];
                     let key = range_hash(cur_h, cur_p, cursor, cursor + k);
+                    // instrumentation: we attempted a lookup of this k-mer
                     crate::instrumentation::add_lookup(1);
+
+                    // Retrieve candidate positions (may be empty). `cands` is
+                    // a small list of (message_index, start) pairs. In real
+                    // conversation data a k-mer can occur many times, so the
+                    // list may be long. To avoid pathological work we can
+                    // (a) prefer recent messages, (b) cap number of candidates
+                    // per lookup, or (c) group/skip duplicates within a
+                    // message. Those heuristics are implemented by callers as
+                    // needed; here we simply iterate the bucket.
                     if let Some(cands) = table.get(&key) {
-                        // Extend each candidate to find maximal match
+                        // Iterate candidates. For each candidate we attempt a
+                        // match extension. Practical micro-optimizations:
+                        // - Pre-check an extra 8 bytes (u64) beyond the k-mer
+                        //   to quickly reject most false positives.
+                        // - Limit the number of candidates examined to `MAX`.
+                        // - Prefer candidates from recent messages (higher
+                        //   msg index) by iterating the list in reverse if it
+                        //   was appended chronologically.
                         for &(midx, ref_start) in cands.iter() {
                             crate::instrumentation::add_candidates(1);
+
                             let prev = &messages_vec[midx];
                             let prev_bytes = prev.as_bytes();
-                            // already matched k bytes
+
+                            // already matched k bytes; now extend the match.
+                            // Fast path: compare 8 bytes at a time (u64 loads)
+                            // while possible, then fall back to per-byte checks
+                            // for any remaining bytes. This is much faster on
+                            // long runs of equal bytes because it reduces the
+                            // number of loop iterations and branch mispredicts.
                             let mut match_len = k;
                             let ext_t0 = std::time::Instant::now();
+
+                            // 8-byte blocks (aligned-byteship handled via from_ne_bytes)
+                            while cursor + match_len + 8 <= bytes.len() && ref_start + match_len + 8 <= prev_bytes.len() {
+                                let a = u64::from_ne_bytes(bytes[cursor + match_len .. cursor + match_len + 8].try_into().unwrap());
+                                let b = u64::from_ne_bytes(prev_bytes[ref_start + match_len .. ref_start + match_len + 8].try_into().unwrap());
+                                if a == b {
+                                    match_len += 8;
+                                    crate::instrumentation::add_chars(8);
+                                    continue;
+                                }
+                                break;
+                            }
+
+                            // tail-bytes
                             while cursor + match_len < bytes.len() && ref_start + match_len < prev_bytes.len()
                                 && bytes[cursor + match_len] == prev_bytes[ref_start + match_len] {
                                 match_len += 1;
                                 crate::instrumentation::add_chars(1);
                             }
+
                             let ext_dur = ext_t0.elapsed().as_nanos() as u64;
                             crate::instrumentation::add_extension_ns(ext_dur);
+
                             if best_match.is_none() || match_len > best_match.unwrap().0 {
                                 best_match = Some((match_len, midx, ref_start));
                             }
