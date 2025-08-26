@@ -2,7 +2,9 @@ use copyforward::{fixture::generate_thread, CappedHashedGreedy, GreedySubstringC
 use std::time::Instant;
 
 fn run_case(cap: usize, ncap: usize) {
-    CappedHashedGreedy::set_overrides(Some(cap), Some(ncap));
+    // Note: CAP/NCAP are compile-time constants; sweep runner currently
+    // reports results for the compiled values. The per-run overrides were
+    // removed to avoid runtime env/thread-local overhead.
 
     let msgs = generate_thread(42, 1000, 1000);
     let refs: Vec<&str> = msgs.iter().map(|s| s.as_str()).collect();
