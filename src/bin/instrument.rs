@@ -1,5 +1,4 @@
-use copyforward::{CopyForward, GreedySubstring, HashedGreedy, HashedGreedyBinary, CappedHashedGreedy};
-use rand_chacha::ChaCha8Rng;
+use copyforward::{CopyForward, CappedHashedGreedy};
 use std::time::Instant;
 use copyforward::fixture::generate_thread;
 
@@ -20,10 +19,9 @@ fn run_case(msgs: &[&str]) {
 
     let _rc = CopyForward::render_with(&c, |_, _, _, s| s.to_string());
 }
-}
 
 fn main() {
-    let msgs = generate_thread(42, 250, 250);
+    let msgs = generate_thread(42, 2500, 2500);
     let refs: Vec<&str> = msgs.iter().map(|s| s.as_str()).collect();
     run_case(&refs);
 }
