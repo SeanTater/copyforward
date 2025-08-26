@@ -9,7 +9,9 @@ pub fn generate_thread(seed: u64, n: usize, base_sentences: usize) -> Vec<String
         let mut s = String::new();
         for i in 0..sentences {
             s.push_str(&format!("This is sentence {i}."));
-            if rng.gen_bool(0.5) { s.push(' '); }
+            if rng.gen_bool(0.5) {
+                s.push(' ');
+            }
         }
         s
     }
@@ -19,14 +21,14 @@ pub fn generate_thread(seed: u64, n: usize, base_sentences: usize) -> Vec<String
     messages.push(base.clone());
 
     for i in 1..n {
-        let prev = messages[i-1].clone();
+        let prev = messages[i - 1].clone();
         let choice = rng.gen_range(0..3);
         let mut new_msg = match choice {
             0 => format!("{prev}\n> Added at end."),
             1 => format!("Added at start.\n> {prev}"),
             _ => {
-                let mid = prev.len()/2;
-                let (a,b) = prev.split_at(mid);
+                let mid = prev.len() / 2;
+                let (a, b) = prev.split_at(mid);
                 format!("{}{}{}", a, "\n[inline reply]\n", b)
             }
         };
@@ -38,5 +40,3 @@ pub fn generate_thread(seed: u64, n: usize, base_sentences: usize) -> Vec<String
 
     messages
 }
-
-
