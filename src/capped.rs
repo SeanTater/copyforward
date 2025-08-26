@@ -1,5 +1,6 @@
 use crate::core::{CopyForward, GreedySubstringConfig, Segment};
 use ahash::AHashMap as HashMap;
+use ahash::AHashSet as HashSet;
 use smallvec::SmallVec;
 
 #[derive(Clone, Copy)]
@@ -44,6 +45,7 @@ impl CappedHashedGreedy {
 
     fn insert_kmers_into_table(
         table: &mut HashMap<u64, Bucket>,
+        seen: &mut HashSet<(u64,u64)>,
         messages_vec: &Vec<String>,
         prefixes: &Vec<(Vec<u64>, Vec<u64>)>,
         j: usize,
@@ -58,14 +60,12 @@ impl CappedHashedGreedy {
                 // compute cap-window hash (ensure we don't overflow bounds)
                 let cap_end = std::cmp::min(messages_vec[j].len(), start + Self::cap_len());
                 let cap_h = Self::range_hash(ref_h, ref_p, start, cap_end);
-                let bucket = table.entry(h).or_insert_with(|| Bucket::new());
-                let mut found = false;
-                for e in bucket.iter() {
-                    if e.cap_hash == cap_h { found = true; break; }
-                }
-                if found {
+                let key = (h, cap_h);
+                if seen.contains(&key) {
                     skipped += 1;
                 } else {
+                    seen.insert(key);
+                    let bucket = table.entry(h).or_insert_with(|| Bucket::new());
                     bucket.push(Entry { cap_hash: cap_h, msg_idx: j, start });
                     added += 1;
                 }
@@ -162,6 +162,8 @@ impl CappedHashedGreedy {
         };
         // HashMap: k-mer hash -> small inline bucket of (cap_hash,msg_idx,start)
         let mut table: HashMap<u64, Bucket> = HashMap::with_capacity((total_kmers / 2).max(16));
+        // global seen set of (kmer,cap) pairs to deduplicate quickly
+        let mut seen: HashSet<(u64,u64)> = HashSet::with_capacity((total_kmers / 2).max(16));
 
         for i in 0..messages_vec.len() {
             let msg = &messages_vec[i];
@@ -172,7 +174,7 @@ impl CappedHashedGreedy {
                 let t0 = Instant::now();
                 let j = i - 1;
                 // insert_kmers needs to know about cap-length hashing now
-                Self::insert_kmers_into_table(&mut table, &messages_vec, &prefixes, j, k);
+                Self::insert_kmers_into_table(&mut table, &mut seen, &messages_vec, &prefixes, j, k);
                 let dur = t0.elapsed().as_nanos() as u64;
                 crate::instrumentation::add_table_build_ns(dur);
             }
