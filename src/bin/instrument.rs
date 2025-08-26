@@ -5,16 +5,16 @@ use copyforward::fixture::generate_thread;
 fn run_case(msgs: &[&str]) {
     // Only run CappedHashedGreedy to focus profiling on the capped
     // implementation. This avoids time being spent in other algorithms.
-    copyforward::instrumentation::reset_counters();
+    // instrumentation removed
     let t = Instant::now();
     let c = CappedHashedGreedy::from_messages(msgs);
     let dur = t.elapsed();
-    let (km, tb, lk, ce, cc, ex) = copyforward::instrumentation::counters_snapshot();
+    let (km, tb, lk, ce, cc, ex) = (0u64,0u64,0u64,0u64,0u64,0u64);
     println!(
         "CappedHashedGreedy: build_time={:?} kmers={} table_ns={} lookups={} candidates={} chars={} ext_ns={}",
         dur, km, tb, lk, ce, cc, ex
     );
-    let (we, wr) = copyforward::instrumentation::winner_stats_snapshot();
+    let (we, wr) = (0u64,0u64);
     println!("CappedHashedGreedy: winner_exts={} winner_chars_recovered={}", we, wr);
 
     let _rc = CopyForward::render_with(&c, |_, _, _, s| s.to_string());

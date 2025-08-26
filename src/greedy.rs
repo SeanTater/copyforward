@@ -55,10 +55,10 @@ impl GreedySubstring {
                                 == prev_msg.as_bytes()[ref_start + match_len]
                         {
                             match_len += 1;
-                            crate::instrumentation::add_chars(1);
+                            // instrumentation removed
                         }
                         let ext_dur = ext_t0.elapsed().as_nanos() as u64;
-                        crate::instrumentation::add_extension_ns(ext_dur);
+                        // instrumentation removed
 
                         // Keep the longest match for this position
                         if match_len >= config.min_match_len {

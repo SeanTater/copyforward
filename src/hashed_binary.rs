@@ -45,7 +45,7 @@ impl HashedGreedyBinary {
                 table.entry(h).or_default().push((j, start));
                 added += 1;
             }
-            crate::instrumentation::add_kmers(added);
+            // instrumentation removed
         }
     }
 
@@ -80,9 +80,9 @@ impl HashedGreedyBinary {
         let matched = low;
         let dur = t0.elapsed().as_nanos() as u64;
         if matched > initial_k {
-            crate::instrumentation::add_chars((matched - initial_k) as u64);
+            // instrumentation removed
         }
-        crate::instrumentation::add_extension_ns(dur);
+        // instrumentation removed
         matched
     }
 
@@ -120,7 +120,7 @@ impl HashedGreedyBinary {
                 let j = i - 1;
                 Self::insert_kmers_into_table(&mut table, &messages_vec, &prefixes, j, k);
                 let dur = t0.elapsed().as_nanos() as u64;
-                crate::instrumentation::add_table_build_ns(dur);
+                // instrumentation removed
             }
 
             let mut cursor = 0usize;
@@ -132,10 +132,8 @@ impl HashedGreedyBinary {
                 if bytes.len() >= cursor + k && k > 0 {
                     let (cur_h, cur_p) = &prefixes[i];
                     let key = Self::range_hash(cur_h, cur_p, cursor, cursor + k);
-                    crate::instrumentation::add_lookup(1);
-
+                    // instrumentation removed
                     if let Some(cands) = table.get(&key) {
-                        crate::instrumentation::add_lookup_count(cands.len());
                         // Cap the number of candidates we examine to avoid
                         // pathological buckets. Prefer earliest entries.
                         let mut examined = 0usize;
@@ -143,7 +141,7 @@ impl HashedGreedyBinary {
                             if examined >= 64 {
                                 break;
                             }
-                            crate::instrumentation::add_candidates(1);
+                            // instrumentation removed
                             examined += 1;
 
                             let prev_pref = &prefixes[midx];

@@ -4,8 +4,7 @@ pub mod python_bindings;
 // Lightweight instrumentation for counting hotspots in development.
 // Uses atomics to avoid locking overhead; reset and snapshot helpers
 // allow a small dev binary to collect simple breakdowns.
-pub mod instrumentation;
-
+// instrumentation removed for production/profile runs; keep no-op stub
 pub mod core;
 pub mod greedy;
 pub mod hashed;

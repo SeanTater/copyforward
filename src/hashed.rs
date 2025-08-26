@@ -94,7 +94,7 @@ impl HashedGreedy {
                 table.entry(h).or_default().push((j, start));
                 added += 1;
             }
-            crate::instrumentation::add_kmers(added);
+                    // instrumentation removed
         }
     }
 
@@ -116,11 +116,11 @@ impl HashedGreedy {
             && bytes[cursor + match_len] == prev_bytes[ref_start + match_len]
         {
             match_len += 1;
-            crate::instrumentation::add_chars(1);
+                            // instrumentation removed
         }
 
         let ext_dur = ext_t0.elapsed().as_nanos() as u64;
-        crate::instrumentation::add_extension_ns(ext_dur);
+        // instrumentation removed
         match_len
     }
 
@@ -169,7 +169,7 @@ impl HashedGreedy {
                 // Insert k-mers from message `j` using the helper.
                 Self::insert_kmers_into_table(&mut table, &messages_vec, &prefixes, j, k);
                 let dur = t0.elapsed().as_nanos() as u64;
-                crate::instrumentation::add_table_build_ns(dur);
+                // instrumentation removed
             }
 
             let mut cursor = 0usize;
@@ -181,10 +181,8 @@ impl HashedGreedy {
                 if bytes.len() >= cursor + k && k > 0 {
                     let (cur_h, cur_p) = &prefixes[i];
                     let key = Self::range_hash(cur_h, cur_p, cursor, cursor + k);
-                    crate::instrumentation::add_lookup(1);
-
+                    // instrumentation removed
                     if let Some(cands) = table.get(&key) {
-                        crate::instrumentation::add_lookup_count(cands.len());
                         // Cap the number of candidates we examine to avoid
                         // pathological buckets. Prefer earliest entries.
                         let mut examined = 0usize;
@@ -192,7 +190,7 @@ impl HashedGreedy {
                             if examined >= 64 {
                                 break;
                             }
-                            crate::instrumentation::add_candidates(1);
+                            // instrumentation removed
                             examined += 1;
 
                             let prev = &messages_vec[midx];

@@ -70,9 +70,8 @@ impl CappedHashedGreedy {
                     added += 1;
                 }
             }
-            crate::instrumentation::add_kmers(added);
-            crate::instrumentation::add_table_build_ns(skipped); // repurpose counter to record skipped (cheap)
-        }
+                // instrumentation removed
+            }
     }
 
     fn extend_candidate_capped(
@@ -91,11 +90,11 @@ impl CappedHashedGreedy {
             && bytes[cursor + match_len] == prev_bytes[ref_start + match_len]
         {
             match_len += 1;
-            crate::instrumentation::add_chars(1);
+            // instrumentation removed
         }
 
         let ext_dur = ext_t0.elapsed().as_nanos() as u64;
-        crate::instrumentation::add_extension_ns(ext_dur);
+        // instrumentation removed
         match_len
     }
 
@@ -130,12 +129,10 @@ impl CappedHashedGreedy {
         let matched = low;
         if matched > initial_k {
             let recovered = (matched - initial_k) as u64;
-            crate::instrumentation::add_chars(recovered);
-            crate::instrumentation::add_winner_extension(1);
-            crate::instrumentation::add_winner_chars_recovered(recovered);
+            // instrumentation removed
         }
         let dur = t0.elapsed().as_nanos() as u64;
-        crate::instrumentation::add_extension_ns(dur);
+        // instrumentation removed
         matched
     }
 
@@ -176,7 +173,7 @@ impl CappedHashedGreedy {
                 // insert_kmers needs to know about cap-length hashing now
                 Self::insert_kmers_into_table(&mut table, &mut seen, &messages_vec, &prefixes, j, k);
                 let dur = t0.elapsed().as_nanos() as u64;
-                crate::instrumentation::add_table_build_ns(dur);
+                // instrumentation removed
             }
 
             let mut cursor = 0usize;
@@ -188,7 +185,7 @@ impl CappedHashedGreedy {
                 if bytes.len() >= cursor + k && k > 0 {
                     let (cur_h, cur_p) = &prefixes[i];
                     let kmer_hash = Self::range_hash(cur_h, cur_p, cursor, cursor + k);
-                    crate::instrumentation::add_lookup(1);
+                    // instrumentation removed
                     // Iterate over range of entries with this kmer_hash
                     let mut seen = 0usize;
                     let cap_len = Self::cap_len();
@@ -202,7 +199,7 @@ impl CappedHashedGreedy {
                             let ref_start = e.start;
                             if midx >= i { continue; }
                             if e.cap_hash != cap_hash_cur { seen += 1; continue; }
-                            crate::instrumentation::add_candidates(1);
+                            // instrumentation removed
                             let prev = &messages_vec[midx];
                             let prev_bytes = prev.as_bytes();
                             let match_len = Self::extend_candidate_capped(bytes, prev_bytes, cursor, ref_start, k);
