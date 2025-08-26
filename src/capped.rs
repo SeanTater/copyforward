@@ -1,5 +1,10 @@
 use crate::core::{CopyForward, GreedySubstringConfig, Segment};
-use std::collections::BTreeMap;
+use ahash::AHashMap as HashMap;
+use smallvec::SmallVec;
+
+#[derive(Clone, Copy)]
+struct Entry { cap_hash: u64, msg_idx: usize, start: usize }
+type Bucket = SmallVec<[Entry; 4]>;
 
 /// Approximate hashed greedy that caps per-candidate extension to a fixed length
 /// and then coalesces adjacent references that point to consecutive source
@@ -38,7 +43,7 @@ impl CappedHashedGreedy {
     }
 
     fn insert_kmers_into_table(
-        table: &mut BTreeMap<(u64,u64), (usize, usize)>,
+        table: &mut HashMap<u64, Bucket>,
         messages_vec: &Vec<String>,
         prefixes: &Vec<(Vec<u64>, Vec<u64>)>,
         j: usize,
@@ -53,11 +58,15 @@ impl CappedHashedGreedy {
                 // compute cap-window hash (ensure we don't overflow bounds)
                 let cap_end = std::cmp::min(messages_vec[j].len(), start + Self::cap_len());
                 let cap_h = Self::range_hash(ref_h, ref_p, start, cap_end);
-                let key = (h, cap_h);
-                if table.contains_key(&key) {
+                let bucket = table.entry(h).or_insert_with(|| Bucket::new());
+                let mut found = false;
+                for e in bucket.iter() {
+                    if e.cap_hash == cap_h { found = true; break; }
+                }
+                if found {
                     skipped += 1;
                 } else {
-                    table.insert(key, (j, start));
+                    bucket.push(Entry { cap_hash: cap_h, msg_idx: j, start });
                     added += 1;
                 }
             }
@@ -151,8 +160,8 @@ impl CappedHashedGreedy {
         } else {
             0
         };
-        // Single BTreeMap: (k-mer hash, cap-window hash) -> representative (msg_idx,start)
-        let mut table: BTreeMap<(u64,u64), (usize, usize)> = BTreeMap::new();
+        // HashMap: k-mer hash -> small inline bucket of (cap_hash,msg_idx,start)
+        let mut table: HashMap<u64, Bucket> = HashMap::with_capacity((total_kmers / 2).max(16));
 
         for i in 0..messages_vec.len() {
             let msg = &messages_vec[i];
@@ -184,21 +193,22 @@ impl CappedHashedGreedy {
                     let ncap = Self::ncap();
                     let cap_end_cur = std::cmp::min(bytes.len(), cursor + cap_len);
                     let cap_hash_cur = Self::range_hash(&cur_h, &cur_p, cursor, cap_end_cur);
-                    let low = (kmer_hash, 0u64);
-                    let high = (kmer_hash, u64::MAX);
-                    for ((_, cap_hash_prev), &(midx, ref_start)) in table.range(low..=high) {
-                        if seen >= ncap { break; }
-                        // only allow references to prior messages
-                        if midx >= i { continue; }
-                        if *cap_hash_prev != cap_hash_cur { seen += 1; continue; }
-                        crate::instrumentation::add_candidates(1);
-                        let prev = &messages_vec[midx];
-                        let prev_bytes = prev.as_bytes();
-                        let match_len = Self::extend_candidate_capped(bytes, prev_bytes, cursor, ref_start, k);
-                        if best_match.is_none() || match_len > best_match.unwrap().0 {
-                            best_match = Some((match_len, midx, ref_start));
+                    if let Some(bucket) = table.get(&kmer_hash) {
+                        for e in bucket.iter() {
+                            if seen >= ncap { break; }
+                            let midx = e.msg_idx;
+                            let ref_start = e.start;
+                            if midx >= i { continue; }
+                            if e.cap_hash != cap_hash_cur { seen += 1; continue; }
+                            crate::instrumentation::add_candidates(1);
+                            let prev = &messages_vec[midx];
+                            let prev_bytes = prev.as_bytes();
+                            let match_len = Self::extend_candidate_capped(bytes, prev_bytes, cursor, ref_start, k);
+                            if best_match.is_none() || match_len > best_match.unwrap().0 {
+                                best_match = Some((match_len, midx, ref_start));
+                            }
+                            seen += 1;
                         }
-                        seen += 1;
                     }
                 }
 
@@ -226,9 +236,7 @@ impl CappedHashedGreedy {
                             let (cur_h, cur_p) = &prefixes[i];
                             if bytes.len() >= literal_end + k {
                                 let kmer_hash2 = Self::range_hash(cur_h, cur_p, literal_end, literal_end + k);
-                                let low2 = (kmer_hash2, 0u64);
-                                let high2 = (kmer_hash2, u64::MAX);
-                                if table.range(low2..=high2).next().is_some() {
+                                if table.contains_key(&kmer_hash2) {
                                     found_match = true;
                                 }
                             }
