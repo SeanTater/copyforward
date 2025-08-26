@@ -131,7 +131,7 @@ impl CappedHashedGreedy {
     }
 
     pub fn with_config(config: &GreedySubstringConfig, _messages: &[&str]) -> CappedHashedGreedy {
-        use std::collections::HashMap;
+        // no extra collections imported here
 
         let messages_vec: Vec<String> = _messages.iter().map(|s| s.to_string()).collect();
         let mut inner: Vec<Vec<Segment>> = Vec::with_capacity(messages_vec.len());
@@ -225,8 +225,10 @@ impl CappedHashedGreedy {
                         if k > 0 {
                             let (cur_h, cur_p) = &prefixes[i];
                             if bytes.len() >= literal_end + k {
-                                let key = Self::range_hash(cur_h, cur_p, literal_end, literal_end + k);
-                                if table.contains_key(&key) {
+                                let kmer_hash2 = Self::range_hash(cur_h, cur_p, literal_end, literal_end + k);
+                                let low2 = (kmer_hash2, 0u64);
+                                let high2 = (kmer_hash2, u64::MAX);
+                                if table.range(low2..=high2).next().is_some() {
                                     found_match = true;
                                 }
                             }
