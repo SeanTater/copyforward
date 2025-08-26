@@ -1,11 +1,5 @@
 use crate::core::{CopyForward, GreedySubstringConfig, Segment};
-use std::cell::Cell;
 use ahash::AHashMap as HashMap;
-
-thread_local! {
-    static CAP_OVERRIDE: Cell<Option<usize>> = Cell::new(None);
-    static NCAP_OVERRIDE: Cell<Option<usize>> = Cell::new(None);
-}
 
 /// Approximate hashed greedy that caps per-candidate extension to a fixed length
 /// and then coalesces adjacent references that point to consecutive source
@@ -17,22 +11,13 @@ pub struct CappedHashedGreedy {
 }
 
 impl CappedHashedGreedy {
-    // CAP_LEN and NCAP made runtime-configurable via env vars for sweeps.
-    const DEFAULT_CAP_LEN: usize = 64;
-    const DEFAULT_NCAP: usize = 64;
-    fn cap_len() -> usize {
-        CAP_OVERRIDE.with(|c| c.get()).unwrap_or_else(|| std::env::var("CAP_LEN").ok().and_then(|s| s.parse().ok()).unwrap_or(Self::DEFAULT_CAP_LEN))
-    }
-
-    fn ncap() -> usize {
-        NCAP_OVERRIDE.with(|c| c.get()).unwrap_or_else(|| std::env::var("NCAP").ok().and_then(|s| s.parse().ok()).unwrap_or(Self::DEFAULT_NCAP))
-    }
-
-    // Set per-thread overrides for cap and ncap (used by sweep harness).
-    pub fn set_overrides(cap: Option<usize>, ncap: Option<usize>) {
-        CAP_OVERRIDE.with(|c| c.set(cap));
-        NCAP_OVERRIDE.with(|c| c.set(ncap));
-    }
+    // CAP_LEN and NCAP are compile-time constants.
+    const CAP_LEN: usize = 64;
+    const NCAP: usize = 64;
+    #[inline]
+    fn cap_len() -> usize { Self::CAP_LEN }
+    #[inline]
+    fn ncap() -> usize { Self::NCAP }
 
     fn prefix_hashes(s: &[u8], base: u64) -> (Vec<u64>, Vec<u64>) {
         let mut h = Vec::with_capacity(s.len() + 1);
