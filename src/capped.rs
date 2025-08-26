@@ -149,6 +149,13 @@ impl CappedHashedGreedy {
     }
 
     pub fn with_config(config: &GreedySubstringConfig, _messages: &[&str]) -> CappedHashedGreedy {
+        // Read CAP_LEN/NCAP env vars once here and set thread-local
+        // overrides so hot-path `cap_len()` / `ncap()` do not repeatedly
+        // call `std::env::var` which is expensive.
+        let cap_override = std::env::var("CAP_LEN").ok().and_then(|s| s.parse().ok());
+        let ncap_override = std::env::var("NCAP").ok().and_then(|s| s.parse().ok());
+        Self::set_overrides(cap_override, ncap_override);
+
         use std::collections::HashMap;
 
         let messages_vec: Vec<String> = _messages.iter().map(|s| s.to_string()).collect();
