@@ -4,7 +4,11 @@ use ahash::AHashSet as HashSet;
 use smallvec::SmallVec;
 
 #[derive(Clone, Copy)]
-struct Entry { cap_hash: u64, msg_idx: usize, start: usize }
+struct Entry {
+    cap_hash: u64,
+    msg_idx: usize,
+    start: usize,
+}
 type Bucket = SmallVec<[Entry; 4]>;
 
 /// Approximate hashed greedy that caps per-candidate extension to a fixed length
@@ -21,9 +25,13 @@ impl CappedHashedGreedy {
     const CAP_LEN: usize = 64;
     const NCAP: usize = 64;
     #[inline]
-    fn cap_len() -> usize { Self::CAP_LEN }
+    fn cap_len() -> usize {
+        Self::CAP_LEN
+    }
     #[inline]
-    fn ncap() -> usize { Self::NCAP }
+    fn ncap() -> usize {
+        Self::NCAP
+    }
 
     fn prefix_hashes(s: &[u8], base: u64) -> (Vec<u64>, Vec<u64>) {
         let mut h = Vec::with_capacity(s.len() + 1);
@@ -45,7 +53,7 @@ impl CappedHashedGreedy {
 
     fn insert_kmers_into_table(
         table: &mut HashMap<u64, Bucket>,
-        seen: &mut HashSet<(u64,u64)>,
+        seen: &mut HashSet<(u64, u64)>,
         messages_vec: &Vec<String>,
         prefixes: &Vec<(Vec<u64>, Vec<u64>)>,
         j: usize,
@@ -66,12 +74,16 @@ impl CappedHashedGreedy {
                 } else {
                     seen.insert(key);
                     let bucket = table.entry(h).or_insert_with(|| Bucket::new());
-                    bucket.push(Entry { cap_hash: cap_h, msg_idx: j, start });
+                    bucket.push(Entry {
+                        cap_hash: cap_h,
+                        msg_idx: j,
+                        start,
+                    });
                     added += 1;
                 }
             }
-                // instrumentation removed
-            }
+            // instrumentation removed
+        }
     }
 
     fn extend_candidate_capped(
@@ -160,7 +172,7 @@ impl CappedHashedGreedy {
         // HashMap: k-mer hash -> small inline bucket of (cap_hash,msg_idx,start)
         let mut table: HashMap<u64, Bucket> = HashMap::with_capacity((total_kmers / 2).max(16));
         // global seen set of (kmer,cap) pairs to deduplicate quickly
-        let mut seen: HashSet<(u64,u64)> = HashSet::with_capacity((total_kmers / 2).max(16));
+        let mut seen: HashSet<(u64, u64)> = HashSet::with_capacity((total_kmers / 2).max(16));
 
         for i in 0..messages_vec.len() {
             let msg = &messages_vec[i];
@@ -171,7 +183,14 @@ impl CappedHashedGreedy {
                 let t0 = Instant::now();
                 let j = i - 1;
                 // insert_kmers needs to know about cap-length hashing now
-                Self::insert_kmers_into_table(&mut table, &mut seen, &messages_vec, &prefixes, j, k);
+                Self::insert_kmers_into_table(
+                    &mut table,
+                    &mut seen,
+                    &messages_vec,
+                    &prefixes,
+                    j,
+                    k,
+                );
                 let dur = t0.elapsed().as_nanos() as u64;
                 // instrumentation removed
             }
@@ -194,15 +213,24 @@ impl CappedHashedGreedy {
                     let cap_hash_cur = Self::range_hash(&cur_h, &cur_p, cursor, cap_end_cur);
                     if let Some(bucket) = table.get(&kmer_hash) {
                         for e in bucket.iter() {
-                            if seen >= ncap { break; }
+                            if seen >= ncap {
+                                break;
+                            }
                             let midx = e.msg_idx;
                             let ref_start = e.start;
-                            if midx >= i { continue; }
-                            if e.cap_hash != cap_hash_cur { seen += 1; continue; }
+                            if midx >= i {
+                                continue;
+                            }
+                            if e.cap_hash != cap_hash_cur {
+                                seen += 1;
+                                continue;
+                            }
                             // instrumentation removed
                             let prev = &messages_vec[midx];
                             let prev_bytes = prev.as_bytes();
-                            let match_len = Self::extend_candidate_capped(bytes, prev_bytes, cursor, ref_start, k);
+                            let match_len = Self::extend_candidate_capped(
+                                bytes, prev_bytes, cursor, ref_start, k,
+                            );
                             if best_match.is_none() || match_len > best_match.unwrap().0 {
                                 best_match = Some((match_len, midx, ref_start));
                             }
@@ -234,13 +262,16 @@ impl CappedHashedGreedy {
                         if k > 0 {
                             let (cur_h, cur_p) = &prefixes[i];
                             if bytes.len() >= literal_end + k {
-                                let kmer_hash2 = Self::range_hash(cur_h, cur_p, literal_end, literal_end + k);
+                                let kmer_hash2 =
+                                    Self::range_hash(cur_h, cur_p, literal_end, literal_end + k);
                                 if table.contains_key(&kmer_hash2) {
                                     found_match = true;
                                 }
                             }
                         }
-                        if found_match { break; }
+                        if found_match {
+                            break;
+                        }
                         literal_end += 1;
                     }
                     segs.push(Segment::Literal(msg[cursor..literal_end].to_string()));
@@ -261,13 +292,22 @@ impl CappedHashedGreedy {
             let mut cur_cursor = 0usize;
             while i < segs.len() {
                 match &segs[i] {
-                    Segment::Reference { message_idx, start, len } => {
+                    Segment::Reference {
+                        message_idx,
+                        start,
+                        len,
+                    } => {
                         let mut cur_msg = *message_idx;
                         let mut cur_start = *start;
                         let mut cur_len = *len;
                         i += 1;
                         while i < segs.len() {
-                            if let Segment::Reference { message_idx: m2, start: s2, len: l2 } = &segs[i] {
+                            if let Segment::Reference {
+                                message_idx: m2,
+                                start: s2,
+                                len: l2,
+                            } = &segs[i]
+                            {
                                 if *m2 == cur_msg && *s2 == cur_start + cur_len {
                                     cur_len += *l2;
                                     i += 1;
@@ -276,7 +316,11 @@ impl CappedHashedGreedy {
                             }
                             break;
                         }
-                        out.push(Segment::Reference { message_idx: cur_msg, start: cur_start, len: cur_len });
+                        out.push(Segment::Reference {
+                            message_idx: cur_msg,
+                            start: cur_start,
+                            len: cur_len,
+                        });
                         cur_cursor += cur_len;
                     }
                     Segment::Literal(l) => {
@@ -289,7 +333,11 @@ impl CappedHashedGreedy {
             *segs = out;
         }
 
-        CappedHashedGreedy { inner, messages: messages_vec, config: config.clone() }
+        CappedHashedGreedy {
+            inner,
+            messages: messages_vec,
+            config: config.clone(),
+        }
     }
 
     fn segments(&self) -> Vec<Vec<Segment>> {
@@ -306,7 +354,11 @@ impl CappedHashedGreedy {
             for seg in segs {
                 match seg {
                     Segment::Literal(l) => s.push_str(l),
-                    Segment::Reference { message_idx, start, len } => {
+                    Segment::Reference {
+                        message_idx,
+                        start,
+                        len,
+                    } => {
                         let ref_text = &self.messages[*message_idx][*start..(*start + *len)];
                         let replaced = _replacer(*message_idx, *start, *len, ref_text);
                         s.push_str(&replaced);

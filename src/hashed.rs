@@ -94,7 +94,7 @@ impl HashedGreedy {
                 table.entry(h).or_default().push((j, start));
                 added += 1;
             }
-                    // instrumentation removed
+            // instrumentation removed
         }
     }
 
@@ -116,7 +116,7 @@ impl HashedGreedy {
             && bytes[cursor + match_len] == prev_bytes[ref_start + match_len]
         {
             match_len += 1;
-                            // instrumentation removed
+            // instrumentation removed
         }
 
         let ext_dur = ext_t0.elapsed().as_nanos() as u64;

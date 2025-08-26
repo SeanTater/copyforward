@@ -79,7 +79,11 @@ fn run_partial_overlaps_across_multiple_messages<C: CopyForward>() {
     let rendered = cf.render_with(|_, _, _, text| text.to_string());
     assert_eq!(rendered[2], "hello world peace and joy for everyone");
     let has_long_match = segs[2].iter().any(|seg| match seg {
-        &Segment::Reference { len, .. } if len >= GreedySubstringConfig::default().min_match_len => true,
+        &Segment::Reference { len, .. }
+            if len >= GreedySubstringConfig::default().min_match_len =>
+        {
+            true
+        }
         _ => false,
     });
     assert!(
@@ -179,7 +183,7 @@ fn run_respects_minimum_match_length_realistically<C: CopyForward>() {
         }
     }
     let has_long_match = segs[2].iter().any(|seg| match seg {
-            &Segment::Reference { len, .. } => len >= GreedySubstringConfig::default().min_match_len,
+        &Segment::Reference { len, .. } => len >= GreedySubstringConfig::default().min_match_len,
         _ => false,
     });
     assert!(
@@ -250,7 +254,9 @@ fn run_handles_multiple_references_to_same_substring<C: CopyForward>() {
         "Should find multiple long references"
     );
     assert!(
-        ref_segments.iter().any(|&len| len >= GreedySubstringConfig::default().min_match_len),
+        ref_segments
+            .iter()
+            .any(|&len| len >= GreedySubstringConfig::default().min_match_len),
         "Should find references >= {} chars",
         GreedySubstringConfig::default().min_match_len
     );
@@ -289,7 +295,9 @@ fn run_compression_with_realistic_conversation<C: CopyForward>() {
     );
     let has_meaningful_matches = segs.iter().skip(1).any(|msg_segs| {
         msg_segs.iter().any(|seg| match seg {
-            &Segment::Reference { len, .. } => len >= GreedySubstringConfig::default().min_match_len,
+            &Segment::Reference { len, .. } => {
+                len >= GreedySubstringConfig::default().min_match_len
+            }
             _ => false,
         })
     });

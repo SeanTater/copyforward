@@ -1,15 +1,17 @@
 use copyforward::CappedHashedGreedy;
-use copyforward::fixture::generate_thread;
 use copyforward::CopyForward;
+use copyforward::fixture::generate_thread;
 
 #[test]
 fn capped_preserves_rendering_small() {
     let msgs = generate_thread(1, 10, 10);
     let mut refs: Vec<&str> = Vec::with_capacity(msgs.len());
-    for s in &msgs { refs.push(s.as_str()); }
+    for s in &msgs {
+        refs.push(s.as_str());
+    }
 
     let cap = CappedHashedGreedy::from_messages(&refs);
-    let rendered = cap.render_with(|_,_,_,s| s.to_string());
+    let rendered = cap.render_with(|_, _, _, s| s.to_string());
 
     for (i, r) in rendered.iter().enumerate() {
         if r != &refs[i] {
@@ -31,7 +33,9 @@ fn capped_coalesces_adjacent_refs() {
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     ];
     let mut refs: Vec<&str> = Vec::with_capacity(msgs.len());
-    for s in &msgs { refs.push(*s); }
+    for s in &msgs {
+        refs.push(*s);
+    }
 
     let cap = CappedHashedGreedy::from_messages(&refs);
     let segs = cap.segments();
@@ -40,7 +44,10 @@ fn capped_coalesces_adjacent_refs() {
     let second = &segs[1];
     let mut found_ref = false;
     for seg in second.iter() {
-        if let copyforward::Segment::Reference { message_idx, len, .. } = seg {
+        if let copyforward::Segment::Reference {
+            message_idx, len, ..
+        } = seg
+        {
             if message_idx == &0 && len >= &64usize {
                 found_ref = true;
             }
