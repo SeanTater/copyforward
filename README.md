@@ -1,40 +1,65 @@
 # copyforward
 
-Rust library to detect repeated quoted substrings across messages and represent
-them as references to previous content (copy-forward). This repo contains:
+Python-first usage
+-------------------
 
-- `src/lib.rs`: Rust library with a `CopyForward` trait and `GreedySubstring`
-  implementation (greedy substring matching algorithm).
-- `src/fixture.rs`: deterministic message-thread generator used in tests/benches.
-- `benches/`: Criterion benchmarks.
-- `src/python_bindings.rs`: basic pyo3 bindings exposing `PyGreedySubstring`.
+This project provides a Rust implementation of a "copy-forward" algorithm
+and exposes a Python binding for easy use from Python code. It detects
+repeated quoted substrings across messages and represents them as references
+to earlier messages (reducing duplication in message threads).
 
-Usage (Rust)
+Quickstart (Python)
 
-Add this crate as a dependency (local development) and use `GreedySubstring::from_messages`.
+1. Build and install the Python extension (requires `maturin`):
 
-Example (Rust) — configure minimum match length:
+   ```bash
+   pip install maturin
+   maturin develop
+   ```
+
+2. Use the Python API:
+
+   ```py
+   from copyforward import PyGreedySubstring
+   msgs = ["Hello world", "Hello world again"]
+   cf = PyGreedySubstring(msgs, min_match_len=4)
+   print(cf.segments())
+   print(cf.render_with_static("[REF]"))
+   ```
+
+Library (Rust)
+----------------
+
+If you prefer to use the Rust API directly, the crate exposes a `CopyForward`
+trait and several implementations in `src/` (including the `CappedHashedGreedy`
+approximate implementation). Typical usage:
 
 ```rust
 use copyforward::{GreedySubstring, GreedySubstringConfig};
-
-let msgs = &["hello", "hello world"];
+let msgs = &["Hello", "Hello world"];
 let cfg = GreedySubstringConfig { min_match_len: 4, lookback: None };
 let cf = GreedySubstring::with_config(&cfg, msgs);
-let segments = cf.segments();
+let out = cf.render_with(|_m, _s, _l, text| text.to_string());
 ```
 
-Usage (Python)
+Repository layout
+------------------
 
-Build the Python extension with maturin or `maturin develop` (recommended). Then:
+- `src/` — main Rust library and implementations
+- `benches/` — Criterion benchmarks
+- `tests/` — integration/unit tests
 
-```python
-from copyforward import PyLongestMatch
-msgs = ["hello", "hello world"]
-# keyword args supported for min_match_len and lookback
-cf = PyLongestMatch(msgs, min_match_len=4, lookback=None)
-print(cf.segments())
-print(cf.render_with_static("..."))
-```
+Development notes
+------------------
 
+- `cargo test` runs the Rust tests.
+- `cargo fmt` formats the code.
+- `maturin develop` builds and installs the Python extension.
+
+Contributing
+-------------
+
+This repo aims to be minimal and focused. If you'd like to contribute,
+open an issue or a pull request with a clear description and tests. We
+prioritize correctness and reproducible benchmarks.
 

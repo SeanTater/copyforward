@@ -1,6 +1,0 @@
-GreedySubstring: build_time=16.349929898s kmers=0 table_ns=0 lookups=0 candidates=0 chars=389063736 ext_ns=8337645691
-HashedGreedy: build_time=556.194289ms kmers=1935826 table_ns=279935617 lookups=14310 candidates=912207 chars=19583577 ext_ns=186840003
-HashedGreedy: lookup_stats num=14304 mean_candidates=7523 max_candidates=69165
-HashedGreedyBinary: build_time=685.89657ms kmers=1935826 table_ns=279481314 lookups=14310 candidates=912207 chars=19583577 ext_ns=313606035
-HashedGreedyBinary: lookup_stats num=14304 mean_candidates=7523 max_candidates=69165
-CappedHashedGreedy: build_time=856.697196ms kmers=12214 table_ns=748746402 lookups=10266 candidates=4466 chars=1917787 ext_ns=35959913
