@@ -43,6 +43,9 @@ pub fn counters_snapshot() -> (u64, u64, u64, u64, u64, u64) {
     (km, tb, lk, ce, cc, ex)
 }
 
+pub fn add_duration_table_build_ns(n: u64) { add_table_build_ns(n); }
+
+
 pub fn add_lookup_count(n_candidates: usize) {
     let n64 = n_candidates as u64;
     SUM_CANDIDATES.with(|c| c.set(c.get().wrapping_add(n64)));

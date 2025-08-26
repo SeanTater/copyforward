@@ -1,0 +1,644 @@
+instrument   28386  2379.256448:    5050505 cpu_core/cycles/P: 
+	ffffffffa9cd76df anon_vma_interval_tree_insert+0x3f ([kernel.kallsyms])
+	ffffffffa9d15abf vma_complete+0xcf ([kernel.kallsyms])
+	ffffffffa9d16826 __split_vma+0x276 ([kernel.kallsyms])
+	ffffffffa9d1693c vms_gather_munmap_vmas+0x4c ([kernel.kallsyms])
+	ffffffffa9d17ab1 do_vmi_align_munmap+0x101 ([kernel.kallsyms])
+	ffffffffa9cf92f1 __do_sys_brk+0x3d1 ([kernel.kallsyms])
+	ffffffffa9cf9392 __x64_sys_brk+0x12 ([kernel.kallsyms])
+	ffffffffa988586f x64_sys_call+0x1bef ([kernel.kallsyms])
+	ffffffffaaad579e do_syscall_64+0x7e ([kernel.kallsyms])
+	ffffffffa960012b entry_SYSCALL_64_after_hwframe+0x76 ([kernel.kallsyms])
+	    7d18cf31d77b __brk+0xb (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    7d18cf2aaa26 __default_morecore@GLIBC_2.2.5+0x16 (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    7d18cf2aaac4 systrim.constprop.0+0x84 (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    7d18cf2ad0d8 _int_realloc+0x188 (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    7d18cf2ae2f5 realloc+0x255 (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffaa8f2 alloc::raw_vec::finish_grow+0x32 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffaa877 alloc::raw_vec::RawVecInner<A>::reserve::do_reserve_and_handle+0x67 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34fff1343 <alloc::string::String as core::fmt::Write>::write_str+0x53 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34fff23be core::fmt::write+0x1ee (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34fff0df8 alloc::fmt::format::format_inner+0x118 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb58fa copyforward::fixture::generate_thread+0x6ba (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2379.257410:    5050505 cpu_core/cycles/P: 
+	    7d18cf575c36 [unknown] ([vdso])
+	    7d18cf2ec96d clock_gettime@@GLIBC_2.17+0x1d (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd6836 std::time::Instant::elapsed+0x16 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6203 copyforward::greedy::GreedySubstring::with_config+0x423 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359c62b40 [unknown] ([unknown])
+
+instrument   28386  2379.260520:   16426014 cpu_core/cycles/P: 
+	    5ef34ffb6156 copyforward::greedy::GreedySubstring::with_config+0x376 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359c86840 [unknown] ([unknown])
+
+instrument   28386  2379.266531:   31698317 cpu_core/cycles/P: 
+	    5ef34ffb07d0 _ZN4core3ops8function6FnOnce9call_once17h092889658da80f8cE.llvm.16780537754873787332+0x0 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359c86840 [unknown] ([unknown])
+
+instrument   28386  2379.274807:   43609614 cpu_core/cycles/P: 
+	    5ef34ffb6144 copyforward::greedy::GreedySubstring::with_config+0x364 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359c6d2e0 [unknown] ([unknown])
+
+instrument   28386  2379.284276:   49898650 cpu_core/cycles/P: 
+	    5ef34ffb61cd copyforward::greedy::GreedySubstring::with_config+0x3ed (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359d07170 [unknown] ([unknown])
+
+instrument   28386  2379.294152:   52208164 cpu_core/cycles/P: 
+	    5ef34ffb6130 copyforward::greedy::GreedySubstring::with_config+0x350 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359c6fd20 [unknown] ([unknown])
+
+instrument   28386  2379.304194:   53087286 cpu_core/cycles/P: 
+	    5ef34ffb07e3 _ZN4core3ops8function6FnOnce9call_once17h092889658da80f8cE.llvm.16780537754873787332+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359caa3f0 [unknown] ([unknown])
+
+instrument   28386  2379.314279:   53318189 cpu_core/cycles/P: 
+	    5ef34ffd6867 std::time::Instant::elapsed+0x47 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6203 copyforward::greedy::GreedySubstring::with_config+0x423 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359c77c30 [unknown] ([unknown])
+
+instrument   28386  2379.324376:   53379096 cpu_core/cycles/P: 
+	    5ef34ffb6130 copyforward::greedy::GreedySubstring::with_config+0x350 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359dddeb0 [unknown] ([unknown])
+
+instrument   28386  2379.334485:   53395317 cpu_core/cycles/P: 
+	    5ef34ffb61b2 copyforward::greedy::GreedySubstring::with_config+0x3d2 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359d41a80 [unknown] ([unknown])
+
+instrument   28386  2379.344578:   53347969 cpu_core/cycles/P: 
+	    5ef34ffda850 std::sys::pal::unix::time::Timespec::now+0x0 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6203 copyforward::greedy::GreedySubstring::with_config+0x423 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359c92c00 [unknown] ([unknown])
+
+instrument   28386  2379.354684:   53384368 cpu_core/cycles/P: 
+	    5ef34ffb6130 copyforward::greedy::GreedySubstring::with_config+0x350 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359d44cf0 [unknown] ([unknown])
+
+instrument   28386  2379.364778:   53365168 cpu_core/cycles/P: 
+	    5ef34ffb0883 _ZN4core3ops8function6FnOnce9call_once17h89ed87212c62544bE.llvm.16780537754873787332+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359cd3640 [unknown] ([unknown])
+
+instrument   28386  2379.374877:   53392592 cpu_core/cycles/P: 
+	    7d18cf575cb8 [unknown] ([vdso])
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6169 copyforward::greedy::GreedySubstring::with_config+0x389 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359e21ba0 [unknown] ([unknown])
+
+instrument   28386  2379.384978:   53398574 cpu_core/cycles/P: 
+	    5ef34ffb6169 copyforward::greedy::GreedySubstring::with_config+0x389 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359d41a80 [unknown] ([unknown])
+
+instrument   28386  2379.395079:   53397798 cpu_core/cycles/P: 
+	    5ef34ffb6144 copyforward::greedy::GreedySubstring::with_config+0x364 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359da3730 [unknown] ([unknown])
+
+instrument   28386  2379.405180:   53400622 cpu_core/cycles/P: 
+	    7d18cf575c36 [unknown] ([vdso])
+	    7d18cf2ec96d clock_gettime@@GLIBC_2.17+0x1d (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6169 copyforward::greedy::GreedySubstring::with_config+0x389 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359d25a30 [unknown] ([unknown])
+
+instrument   28386  2379.415284:   53402663 cpu_core/cycles/P: 
+	    7d18cf575c6c [unknown] ([vdso])
+	    7d18cf2ec96d clock_gettime@@GLIBC_2.17+0x1d (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6169 copyforward::greedy::GreedySubstring::with_config+0x389 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359cb2aa0 [unknown] ([unknown])
+
+instrument   28386  2379.425383:   53385614 cpu_core/cycles/P: 
+	    7d18cf575c6f [unknown] ([vdso])
+	    7d18cf2ec96d clock_gettime@@GLIBC_2.17+0x1d (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6169 copyforward::greedy::GreedySubstring::with_config+0x389 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359e75680 [unknown] ([unknown])
+
+instrument   28386  2379.435483:   53394926 cpu_core/cycles/P: 
+	    5ef34ffb6144 copyforward::greedy::GreedySubstring::with_config+0x364 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359d41a80 [unknown] ([unknown])
+
+instrument   28386  2379.445584:   53399786 cpu_core/cycles/P: 
+	    5ef34ffb61b2 copyforward::greedy::GreedySubstring::with_config+0x3d2 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359e8c5a0 [unknown] ([unknown])
+
+instrument   28386  2379.455685:   53400558 cpu_core/cycles/P: 
+	    5ef34ffb61c1 copyforward::greedy::GreedySubstring::with_config+0x3e1 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359db46e0 [unknown] ([unknown])
+
+instrument   28386  2379.465786:   53400774 cpu_core/cycles/P: 
+	    5ef34ffb6130 copyforward::greedy::GreedySubstring::with_config+0x350 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359d07170 [unknown] ([unknown])
+
+instrument   28386  2379.475887:   53400575 cpu_core/cycles/P: 
+	    5ef34ffb6130 copyforward::greedy::GreedySubstring::with_config+0x350 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359d38410 [unknown] ([unknown])
+
+instrument   28386  2379.485989:   53401211 cpu_core/cycles/P: 
+	    7d18cf575c36 [unknown] ([vdso])
+	    7d18cf2ec96d clock_gettime@@GLIBC_2.17+0x1d (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd6836 std::time::Instant::elapsed+0x16 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6203 copyforward::greedy::GreedySubstring::with_config+0x423 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359eb72d0 [unknown] ([unknown])
+
+instrument   28386  2379.496090:   53400398 cpu_core/cycles/P: 
+	    5ef34ffb6144 copyforward::greedy::GreedySubstring::with_config+0x364 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359cedb10 [unknown] ([unknown])
+
+instrument   28386  2379.506191:   53402113 cpu_core/cycles/P: 
+	    5ef34ffb6144 copyforward::greedy::GreedySubstring::with_config+0x364 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359e21ba0 [unknown] ([unknown])
+
+instrument   28386  2379.516292:   53401197 cpu_core/cycles/P: 
+	    7d18cf575c36 [unknown] ([vdso])
+	    7d18cf2ec96d clock_gettime@@GLIBC_2.17+0x1d (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd6836 std::time::Instant::elapsed+0x16 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6203 copyforward::greedy::GreedySubstring::with_config+0x423 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359cf51c0 [unknown] ([unknown])
+
+instrument   28386  2379.526395:   53401370 cpu_core/cycles/P: 
+	    5ef34ffb6144 copyforward::greedy::GreedySubstring::with_config+0x364 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359cd7bc0 [unknown] ([unknown])
+
+instrument   28386  2379.536496:   53391513 cpu_core/cycles/P: 
+	    7d18cf575c64 [unknown] ([vdso])
+	    7d18cf2ec96d clock_gettime@@GLIBC_2.17+0x1d (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd6836 std::time::Instant::elapsed+0x16 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6203 copyforward::greedy::GreedySubstring::with_config+0x423 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359f1c000 [unknown] ([unknown])
+
+instrument   28386  2379.546636:   53392841 cpu_core/cycles/P: 
+	    5ef34ffb07e3 _ZN4core3ops8function6FnOnce9call_once17h092889658da80f8cE.llvm.16780537754873787332+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359f52550 [unknown] ([unknown])
+
+instrument   28386  2379.556711:   53259884 cpu_core/cycles/P: 
+	    5ef34ffb07e3 _ZN4core3ops8function6FnOnce9call_once17h092889658da80f8cE.llvm.16780537754873787332+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359d6b1d0 [unknown] ([unknown])
+
+instrument   28386  2379.566805:   53362921 cpu_core/cycles/P: 
+	    5ef34ffb61b2 copyforward::greedy::GreedySubstring::with_config+0x3d2 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359ef9340 [unknown] ([unknown])
+
+instrument   28386  2379.576933:   53389944 cpu_core/cycles/P: 
+	    7d18cf575c36 [unknown] ([vdso])
+	    7d18cf2ec96d clock_gettime@@GLIBC_2.17+0x1d (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd6836 std::time::Instant::elapsed+0x16 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6203 copyforward::greedy::GreedySubstring::with_config+0x423 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359d07170 [unknown] ([unknown])
+
+instrument   28386  2379.587020:   53322219 cpu_core/cycles/P: 
+	    5ef34ffb61c1 copyforward::greedy::GreedySubstring::with_config+0x3e1 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359e86990 [unknown] ([unknown])
+
+instrument   28386  2379.597117:   53379508 cpu_core/cycles/P: 
+	    5ef34ffb61cd copyforward::greedy::GreedySubstring::with_config+0x3ed (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359f056a0 [unknown] ([unknown])
+
+instrument   28386  2379.607218:   53396956 cpu_core/cycles/P: 
+	    5ef34ffb6130 copyforward::greedy::GreedySubstring::with_config+0x350 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359f9f970 [unknown] ([unknown])
+
+instrument   28386  2379.617318:   53398951 cpu_core/cycles/P: 
+	    5ef34ffb61b2 copyforward::greedy::GreedySubstring::with_config+0x3d2 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359f22330 [unknown] ([unknown])
+
+instrument   28386  2379.627419:   53399230 cpu_core/cycles/P: 
+	    7d18cf575c36 [unknown] ([vdso])
+	    7d18cf2ec96d clock_gettime@@GLIBC_2.17+0x1d (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd6836 std::time::Instant::elapsed+0x16 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6203 copyforward::greedy::GreedySubstring::with_config+0x423 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359d97ab0 [unknown] ([unknown])
+
+instrument   28386  2379.637521:   53400164 cpu_core/cycles/P: 
+	    7d18cf575c36 [unknown] ([vdso])
+	    7d18cf2ec96d clock_gettime@@GLIBC_2.17+0x1d (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd6836 std::time::Instant::elapsed+0x16 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6203 copyforward::greedy::GreedySubstring::with_config+0x423 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359d820f0 [unknown] ([unknown])
+
+instrument   28386  2379.647622:   53398179 cpu_core/cycles/P: 
+	    5ef34ffb61cd copyforward::greedy::GreedySubstring::with_config+0x3ed (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359eff4c0 [unknown] ([unknown])
+
+instrument   28386  2379.657723:   53398901 cpu_core/cycles/P: 
+	    5ef34ffb6156 copyforward::greedy::GreedySubstring::with_config+0x376 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359f056a0 [unknown] ([unknown])
+
+instrument   28386  2379.667824:   53400056 cpu_core/cycles/P: 
+	    5ef34ffb6130 copyforward::greedy::GreedySubstring::with_config+0x350 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359f15d20 [unknown] ([unknown])
+
+instrument   28386  2379.677925:   53400188 cpu_core/cycles/P: 
+	    5ef34ffb6190 copyforward::greedy::GreedySubstring::with_config+0x3b0 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359fa6230 [unknown] ([unknown])
+
+instrument   28386  2379.688026:   53400769 cpu_core/cycles/P: 
+	    5ef34ffb6190 copyforward::greedy::GreedySubstring::with_config+0x3b0 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359ff5c30 [unknown] ([unknown])
+
+instrument   28386  2379.698127:   53399435 cpu_core/cycles/P: 
+	    5ef34ffb61c1 copyforward::greedy::GreedySubstring::with_config+0x3e1 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359f8c080 [unknown] ([unknown])
+
+instrument   28386  2379.708228:   53399347 cpu_core/cycles/P: 
+	    5ef34ffb6156 copyforward::greedy::GreedySubstring::with_config+0x376 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359ee7010 [unknown] ([unknown])
+
+instrument   28386  2379.718329:   53400032 cpu_core/cycles/P: 
+	    5ef34ffb07e3 _ZN4core3ops8function6FnOnce9call_once17h092889658da80f8cE.llvm.16780537754873787332+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359edaf20 [unknown] ([unknown])
+
+instrument   28386  2379.728431:   53400528 cpu_core/cycles/P: 
+	    5ef34ffb61cd copyforward::greedy::GreedySubstring::with_config+0x3ed (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359ea77c0 [unknown] ([unknown])
+
+instrument   28386  2379.738532:   53398961 cpu_core/cycles/P: 
+	    5ef34ffb6156 copyforward::greedy::GreedySubstring::with_config+0x376 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359c693e0 [unknown] ([unknown])
+
+instrument   28386  2379.748633:   53400350 cpu_core/cycles/P: 
+	    7d18cf575c6f [unknown] ([vdso])
+	    7d18cf2ec96d clock_gettime@@GLIBC_2.17+0x1d (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6169 copyforward::greedy::GreedySubstring::with_config+0x389 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359ec8f90 [unknown] ([unknown])
+
+instrument   28386  2379.758734:   53399473 cpu_core/cycles/P: 
+	    5ef34ffb61b5 copyforward::greedy::GreedySubstring::with_config+0x3d5 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359f3f620 [unknown] ([unknown])
+
+instrument   28386  2379.768836:   53398884 cpu_core/cycles/P: 
+	    5ef34ffb61cd copyforward::greedy::GreedySubstring::with_config+0x3ed (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359e80db0 [unknown] ([unknown])
+
+instrument   28386  2379.778937:   53397928 cpu_core/cycles/P: 
+	    5ef34ffb6107 copyforward::greedy::GreedySubstring::with_config+0x327 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359fc7180 [unknown] ([unknown])
+
+instrument   28386  2379.789037:   53398739 cpu_core/cycles/P: 
+	    5ef34ffb61cd copyforward::greedy::GreedySubstring::with_config+0x3ed (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359ffc790 [unknown] ([unknown])
+
+instrument   28386  2379.799139:   53401197 cpu_core/cycles/P: 
+	    7d18cf575c36 [unknown] ([vdso])
+	    7d18cf2ec96d clock_gettime@@GLIBC_2.17+0x1d (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd6836 std::time::Instant::elapsed+0x16 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6203 copyforward::greedy::GreedySubstring::with_config+0x423 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359f34ec0 [unknown] ([unknown])
+
+instrument   28386  2379.809241:   53400836 cpu_core/cycles/P: 
+	    5ef34ffb6130 copyforward::greedy::GreedySubstring::with_config+0x350 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef35a007b30 [unknown] ([unknown])
+
+instrument   28386  2379.819342:   53399102 cpu_core/cycles/P: 
+	    5ef34ffb6144 copyforward::greedy::GreedySubstring::with_config+0x364 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359d02930 [unknown] ([unknown])
+
+instrument   28386  2379.829443:   53399463 cpu_core/cycles/P: 
+	    5ef34ffb61b2 copyforward::greedy::GreedySubstring::with_config+0x3d2 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef35a05c070 [unknown] ([unknown])
+
+instrument   28386  2379.839544:   53397911 cpu_core/cycles/P: 
+	    5ef34ffb61cd copyforward::greedy::GreedySubstring::with_config+0x3ed (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359e2ca90 [unknown] ([unknown])
+
+instrument   28386  2379.849646:   53400535 cpu_core/cycles/P: 
+	    5ef34ffb6190 copyforward::greedy::GreedySubstring::with_config+0x3b0 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef35a070dd0 [unknown] ([unknown])
+
+instrument   28386  2379.859747:   53398681 cpu_core/cycles/P: 
+	    5ef34ffb6130 copyforward::greedy::GreedySubstring::with_config+0x350 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359c7fc60 [unknown] ([unknown])
+
+instrument   28386  2379.869848:   53398596 cpu_core/cycles/P: 
+	    5ef34ffb61cd copyforward::greedy::GreedySubstring::with_config+0x3ed (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359f5f0a0 [unknown] ([unknown])
+
+instrument   28386  2379.879949:   53398306 cpu_core/cycles/P: 
+	    5ef34ffb6181 copyforward::greedy::GreedySubstring::with_config+0x3a1 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359f990e0 [unknown] ([unknown])
+
+instrument   28386  2379.890050:   53399479 cpu_core/cycles/P: 
+	    5ef34ffb61cd copyforward::greedy::GreedySubstring::with_config+0x3ed (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359e75680 [unknown] ([unknown])
+
+instrument   28386  2379.900151:   53399353 cpu_core/cycles/P: 
+	    5ef34ffb6156 copyforward::greedy::GreedySubstring::with_config+0x376 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef35a07c7e0 [unknown] ([unknown])
+
+instrument   28386  2379.910253:   53398473 cpu_core/cycles/P: 
+	    7d18cf575c36 [unknown] ([vdso])
+	    7d18cf2ec96d clock_gettime@@GLIBC_2.17+0x1d (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6169 copyforward::greedy::GreedySubstring::with_config+0x389 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359e57360 [unknown] ([unknown])
+
+instrument   28386  2379.920355:   53398806 cpu_core/cycles/P: 
+	    5ef34ffb07e3 _ZN4core3ops8function6FnOnce9call_once17h092889658da80f8cE.llvm.16780537754873787332+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef35a0406d0 [unknown] ([unknown])
+
+instrument   28386  2379.930465:   53396128 cpu_core/cycles/P: 
+	    5ef34ffd6836 std::time::Instant::elapsed+0x16 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6203 copyforward::greedy::GreedySubstring::with_config+0x423 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359c6fd20 [unknown] ([unknown])
+
+instrument   28386  2379.940559:   53360576 cpu_core/cycles/P: 
+	    5ef34ffb07e3 _ZN4core3ops8function6FnOnce9call_once17h092889658da80f8cE.llvm.16780537754873787332+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359f9f970 [unknown] ([unknown])
+
+instrument   28386  2379.950659:   53391167 cpu_core/cycles/P: 
+	    5ef34ffb61c1 copyforward::greedy::GreedySubstring::with_config+0x3e1 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359ca1e40 [unknown] ([unknown])
+
+instrument   28386  2379.960759:   53396775 cpu_core/cycles/P: 
+	    5ef34ffb07d0 _ZN4core3ops8function6FnOnce9call_once17h092889658da80f8cE.llvm.16780537754873787332+0x0 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359d9b070 [unknown] ([unknown])
+
+instrument   28386  2379.970860:   53400737 cpu_core/cycles/P: 
+	    5ef34ffb61a7 copyforward::greedy::GreedySubstring::with_config+0x3c7 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359e57360 [unknown] ([unknown])
+
+instrument   28386  2379.980962:   53400014 cpu_core/cycles/P: 
+	    5ef34ffb6156 copyforward::greedy::GreedySubstring::with_config+0x376 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359de8740 [unknown] ([unknown])
+
+instrument   28386  2379.991063:   53401344 cpu_core/cycles/P: 
+	    5ef34ffb6190 copyforward::greedy::GreedySubstring::with_config+0x3b0 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359ec8f90 [unknown] ([unknown])
+
+instrument   28386  2380.001165:   53401488 cpu_core/cycles/P: 
+	    5ef34ffb6144 copyforward::greedy::GreedySubstring::with_config+0x364 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef35a027530 [unknown] ([unknown])
+
+instrument   28386  2380.011266:   53399285 cpu_core/cycles/P: 
+	    5ef34ffb07e3 _ZN4core3ops8function6FnOnce9call_once17h092889658da80f8cE.llvm.16780537754873787332+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359dce370 [unknown] ([unknown])
+
+instrument   28386  2380.021367:   53400193 cpu_core/cycles/P: 
+	    5ef34ffb61a3 copyforward::greedy::GreedySubstring::with_config+0x3c3 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359dda6a0 [unknown] ([unknown])
+
+instrument   28386  2380.031469:   53399513 cpu_core/cycles/P: 
+	    7d18cf2ec967 clock_gettime@@GLIBC_2.17+0x17 (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffd6836 std::time::Instant::elapsed+0x16 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6203 copyforward::greedy::GreedySubstring::with_config+0x423 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359dddeb0 [unknown] ([unknown])
+
+instrument   28386  2380.041571:   53397382 cpu_core/cycles/P: 
+	    5ef34ffb61c1 copyforward::greedy::GreedySubstring::with_config+0x3e1 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef35a0ab6b0 [unknown] ([unknown])
+
+instrument   28386  2380.051673:   53393914 cpu_core/cycles/P: 
+	    5ef34ffb6144 copyforward::greedy::GreedySubstring::with_config+0x364 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359f7ceb0 [unknown] ([unknown])
+
+instrument   28386  2380.061782:   53397760 cpu_core/cycles/P: 
+	    5ef34ffb07e3 _ZN4core3ops8function6FnOnce9call_once17h092889658da80f8cE.llvm.16780537754873787332+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359e53790 [unknown] ([unknown])
+
+instrument   28386  2380.071880:   53378268 cpu_core/cycles/P: 
+	    5ef34ffb61cd copyforward::greedy::GreedySubstring::with_config+0x3ed (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359f990e0 [unknown] ([unknown])
+
+instrument   28386  2380.081980:   53392313 cpu_core/cycles/P: 
+	    5ef34ffb6130 copyforward::greedy::GreedySubstring::with_config+0x350 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef35a069e80 [unknown] ([unknown])
+
+instrument   28386  2380.092080:   53396586 cpu_core/cycles/P: 
+	    5ef34ffb6190 copyforward::greedy::GreedySubstring::with_config+0x3b0 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef35a11f250 [unknown] ([unknown])
+
+instrument   28386  2380.102182:   53399100 cpu_core/cycles/P: 
+	    5ef34ffb6144 copyforward::greedy::GreedySubstring::with_config+0x364 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359fdb060 [unknown] ([unknown])
+
+instrument   28386  2380.112283:   53399858 cpu_core/cycles/P: 
+	    5ef34ffb61c1 copyforward::greedy::GreedySubstring::with_config+0x3e1 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359c57480 [unknown] ([unknown])
+
+instrument   28386  2380.122398:   53398093 cpu_core/cycles/P: 
+	    5ef34ffb07e3 _ZN4core3ops8function6FnOnce9call_once17h092889658da80f8cE.llvm.16780537754873787332+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef35a132df0 [unknown] ([unknown])
+
+instrument   28386  2380.132489:   53345720 cpu_core/cycles/P: 
+	    5ef34ffb61cd copyforward::greedy::GreedySubstring::with_config+0x3ed (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359e90360 [unknown] ([unknown])
+
+instrument   28386  2380.142589:   53388708 cpu_core/cycles/P: 
+	    7d18cf575c72 [unknown] ([vdso])
+	    7d18cf2ec96d clock_gettime@@GLIBC_2.17+0x1d (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6169 copyforward::greedy::GreedySubstring::with_config+0x389 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359e5cd20 [unknown] ([unknown])
+
+instrument   28386  2380.152689:   53394948 cpu_core/cycles/P: 
+	    5ef34ffb6240 copyforward::greedy::GreedySubstring::with_config+0x460 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359fa6230 [unknown] ([unknown])
+
+instrument   28386  2380.162790:   53396308 cpu_core/cycles/P: 
+	    5ef34ffb6144 copyforward::greedy::GreedySubstring::with_config+0x364 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359e11700 [unknown] ([unknown])
+
+instrument   28386  2380.172891:   53399119 cpu_core/cycles/P: 
+	    7d18cf575c36 [unknown] ([vdso])
+	    7d18cf2ec96d clock_gettime@@GLIBC_2.17+0x1d (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb6169 copyforward::greedy::GreedySubstring::with_config+0x389 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359fef100 [unknown] ([unknown])
+
+instrument   28386  2380.182994:   53382795 cpu_core/cycles/P: 
+	    5ef34ffb6144 copyforward::greedy::GreedySubstring::with_config+0x364 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef359e2ca90 [unknown] ([unknown])
+
+instrument   28386  2380.193122:   53367950 cpu_core/cycles/P: 
+	ffffffffa9d97ba7 __mod_memcg_lruvec_state+0x117 ([kernel.kallsyms])
+	ffffffffa9d98226 __lruvec_stat_mod_folio+0x86 ([kernel.kallsyms])
+	ffffffffa9d0650c __folio_mod_stat+0x2c ([kernel.kallsyms])
+	ffffffffa9d07fce folio_add_new_anon_rmap+0x8e ([kernel.kallsyms])
+	ffffffffa9cf125e do_anonymous_page+0x2fe ([kernel.kallsyms])
+	ffffffffa9cf2711 handle_pte_fault+0x1e1 ([kernel.kallsyms])
+	ffffffffa9cf2d6c __handle_mm_fault+0x62c ([kernel.kallsyms])
+	ffffffffa9cf2fc9 handle_mm_fault+0x109 ([kernel.kallsyms])
+	ffffffffa99566b2 do_user_addr_fault+0x1d2 ([kernel.kallsyms])
+	ffffffffaaadc275 exc_page_fault+0x85 ([kernel.kallsyms])
+	ffffffffa9600bb7 asm_exc_page_fault+0x27 ([kernel.kallsyms])
+	    7d18cf388d07 __memmove_avx_unaligned_erms+0x307 (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	               0 [unknown] ([unknown])
+
+instrument   28386  2380.203239:   53388999 cpu_core/cycles/P: 
+	ffffffffaaaebf97 _raw_spin_lock+0x17 ([kernel.kallsyms])
+	ffffffffa9cf115a do_anonymous_page+0x1fa ([kernel.kallsyms])
+	ffffffffa9cf2711 handle_pte_fault+0x1e1 ([kernel.kallsyms])
+	ffffffffa9cf2d6c __handle_mm_fault+0x62c ([kernel.kallsyms])
+	ffffffffa9cf2fc9 handle_mm_fault+0x109 ([kernel.kallsyms])
+	ffffffffa99566b2 do_user_addr_fault+0x1d2 ([kernel.kallsyms])
+	ffffffffaaadc275 exc_page_fault+0x85 ([kernel.kallsyms])
+	ffffffffa9600bb7 asm_exc_page_fault+0x27 ([kernel.kallsyms])
+	    7d18cf3894ca __memset_avx2_unaligned_erms+0xca (/usr/lib/x86_64-linux-gnu/libc.so.6)
+
+instrument   28386  2380.213321:   53268250 cpu_core/cycles/P: 
+	ffffffffa9cbcc1d __mod_node_page_state+0xd ([kernel.kallsyms])
+	ffffffffa9c92072 lru_gen_add_folio+0x1d2 ([kernel.kallsyms])
+	ffffffffa9c92c96 lru_add+0xb6 ([kernel.kallsyms])
+	ffffffffa9c94048 folio_batch_move_lru+0x68 ([kernel.kallsyms])
+	ffffffffa9c94201 __folio_batch_add_and_move+0xd1 ([kernel.kallsyms])
+	ffffffffa9c9429c folio_add_lru+0x4c ([kernel.kallsyms])
+	ffffffffa9c94edf folio_add_lru_vma+0x1f ([kernel.kallsyms])
+	ffffffffa9cf1269 do_anonymous_page+0x309 ([kernel.kallsyms])
+	ffffffffa9cf2711 handle_pte_fault+0x1e1 ([kernel.kallsyms])
+	ffffffffa9cf2d6c __handle_mm_fault+0x62c ([kernel.kallsyms])
+	ffffffffa9cf2fc9 handle_mm_fault+0x109 ([kernel.kallsyms])
+	ffffffffa99566b2 do_user_addr_fault+0x1d2 ([kernel.kallsyms])
+	ffffffffaaadc275 exc_page_fault+0x85 ([kernel.kallsyms])
+	ffffffffa9600bb7 asm_exc_page_fault+0x27 ([kernel.kallsyms])
+	    7d18cf388d07 __memmove_avx_unaligned_erms+0x307 (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    7d18cf2ae2f5 realloc+0x255 (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffa41dd _ZN5alloc7raw_vec11finish_grow17h475c4cbff1214635E.llvm.950383365373016419+0x2d (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.223417:   53348050 cpu_core/cycles/P: 
+	    7d18cf575c0b [unknown] ([vdso])
+	    7d18cf2ec96d clock_gettime@@GLIBC_2.17+0x1d (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb410f copyforward::hashed::HashedGreedy::with_config+0x9ef (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.233517:   53373693 cpu_core/cycles/P: 
+	    5ef34ffb2e21 hashbrown::rustc_entry::<impl hashbrown::map::HashMap<K,V,S,A>>::rustc_entry+0x221 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.243616:   53379624 cpu_core/cycles/P: 
+	    5ef34ffda879 std::sys::pal::unix::time::Timespec::now+0x29 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb410f copyforward::hashed::HashedGreedy::with_config+0x9ef (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.253729:   53390210 cpu_core/cycles/P: 
+	    5ef34ffd6872 std::time::Instant::elapsed+0x52 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.263824:   53363881 cpu_core/cycles/P: 
+	    5ef34ffb2c62 hashbrown::rustc_entry::<impl hashbrown::map::HashMap<K,V,S,A>>::rustc_entry+0x62 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.273924:   53389185 cpu_core/cycles/P: 
+	    5ef34ffb47f6 copyforward::hashed::HashedGreedy::with_config+0x10d6 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.284028:   53396976 cpu_core/cycles/P: 
+	    5ef34ffb1810 copyforward::hashed_binary::HashedGreedyBinary::with_config+0x490 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.294157:   53391190 cpu_core/cycles/P: 
+	    7d18cf575c36 [unknown] ([vdso])
+	    7d18cf2ec96d clock_gettime@@GLIBC_2.17+0x1d (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb1d39 copyforward::hashed_binary::HashedGreedyBinary::with_config+0x9b9 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.304240:   53283604 cpu_core/cycles/P: 
+	    5ef34ffb1860 copyforward::hashed_binary::HashedGreedyBinary::with_config+0x4e0 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.314336:   53355604 cpu_core/cycles/P: 
+	    5ef34ffb2c9e hashbrown::rustc_entry::<impl hashbrown::map::HashMap<K,V,S,A>>::rustc_entry+0x9e (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.324435:   53378276 cpu_core/cycles/P: 
+	    7d18cf575c36 [unknown] ([vdso])
+	    7d18cf2ec96d clock_gettime@@GLIBC_2.17+0x1d (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd6836 std::time::Instant::elapsed+0x16 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb1e33 copyforward::hashed_binary::HashedGreedyBinary::with_config+0xab3 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.334536:   53388394 cpu_core/cycles/P: 
+	    5ef34ffda879 std::sys::pal::unix::time::Timespec::now+0x29 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb1d39 copyforward::hashed_binary::HashedGreedyBinary::with_config+0x9b9 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.344638:   53390936 cpu_core/cycles/P: 
+	    7d18cf575c36 [unknown] ([vdso])
+	    7d18cf2ec96d clock_gettime@@GLIBC_2.17+0x1d (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffda863 std::sys::pal::unix::time::Timespec::now+0x13 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd6836 std::time::Instant::elapsed+0x16 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffb1e33 copyforward::hashed_binary::HashedGreedyBinary::with_config+0xab3 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.354739:   53388797 cpu_core/cycles/P: 
+	ffffffffa9601199 __irqentry_text_end+0x49 ([kernel.kallsyms])
+	    5ef34ffae199 copyforward::capped::CappedHashedGreedy::with_config+0x7a9 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.364840:   53385465 cpu_core/cycles/P: 
+	    5ef34ffb300e hashbrown::rustc_entry::<impl hashbrown::map::HashMap<K,V,S,A>>::rustc_entry+0x1ae (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.374950:   53391983 cpu_core/cycles/P: 
+	    5ef34ffae342 copyforward::capped::CappedHashedGreedy::with_config+0x952 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.385040:   53337425 cpu_core/cycles/P: 
+	    5ef34ffadf20 copyforward::capped::CappedHashedGreedy::with_config+0x530 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.395139:   53379159 cpu_core/cycles/P: 
+	    7d18cf38c851 __strncmp_avx2+0x31 (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffdb126 std::sys::env::unix::getenv::_$u7b$$u7b$closure$u7d$$u7d$::h7e081df26cb3ccdf+0x46 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd22e7 std::env::_var_os+0x97 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd21cc std::env::_var+0x1c (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffadf37 copyforward::capped::CappedHashedGreedy::with_config+0x547 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.405240:   53387480 cpu_core/cycles/P: 
+	    5ef34ffb2f0c hashbrown::rustc_entry::<impl hashbrown::map::HashMap<K,V,S,A>>::rustc_entry+0xac (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.415341:   53391194 cpu_core/cycles/P: 
+	    5ef34ffdb110 std::sys::env::unix::getenv::_$u7b$$u7b$closure$u7d$$u7d$::h7e081df26cb3ccdf+0x30 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd22e7 std::env::_var_os+0x97 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd21cc std::env::_var+0x1c (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffadf37 copyforward::capped::CappedHashedGreedy::with_config+0x547 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.425444:   53390944 cpu_core/cycles/P: 
+	    5ef34ffade98 copyforward::capped::CappedHashedGreedy::with_config+0x4a8 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.435545:   53388760 cpu_core/cycles/P: 
+	    5ef34ffade70 copyforward::capped::CappedHashedGreedy::with_config+0x480 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.445656:   53392855 cpu_core/cycles/P: 
+	    5ef34ffd2383 std::env::_var_os+0x133 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd21cc std::env::_var+0x1c (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffaec97 copyforward::capped::CappedHashedGreedy::with_config+0x12a7 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	ffff2b1bffffffff [unknown] ([unknown])
+
+instrument   28386  2380.455752:   53368683 cpu_core/cycles/P: 
+	    7d18cf38c841 __strncmp_avx2+0x21 (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffdb126 std::sys::env::unix::getenv::_$u7b$$u7b$closure$u7d$$u7d$::h7e081df26cb3ccdf+0x46 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd22e7 std::env::_var_os+0x97 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd21cc std::env::_var+0x1c (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffadf37 copyforward::capped::CappedHashedGreedy::with_config+0x547 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.465852:   53391553 cpu_core/cycles/P: 
+	    7d18cf38cbe4 __strncmp_avx2+0x3c4 (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffdb126 std::sys::env::unix::getenv::_$u7b$$u7b$closure$u7d$$u7d$::h7e081df26cb3ccdf+0x46 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd22e7 std::env::_var_os+0x97 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd21cc std::env::_var+0x1c (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffadf37 copyforward::capped::CappedHashedGreedy::with_config+0x547 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.475952:   53394424 cpu_core/cycles/P: 
+	    5ef34ffb2efe hashbrown::rustc_entry::<impl hashbrown::map::HashMap<K,V,S,A>>::rustc_entry+0x9e (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+
+instrument   28386  2380.486053:   53398461 cpu_core/cycles/P: 
+	    7d18cf38c851 __strncmp_avx2+0x31 (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    5ef34ffdb126 std::sys::env::unix::getenv::_$u7b$$u7b$closure$u7d$$u7d$::h7e081df26cb3ccdf+0x46 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd22e7 std::env::_var_os+0x97 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffd21cc std::env::_var+0x1c (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	    5ef34ffaec97 copyforward::capped::CappedHashedGreedy::with_config+0x12a7 (/home/sean-gallagher/sandbox/copyforward/target/release/instrument)
+	ffffff32ffff27ff [unknown] ([unknown])
+
+instrument   28386  2380.496155:   53399316 cpu_core/cycles/P: 
+	ffffffffa9d0826b folio_remove_rmap_ptes+0xb ([kernel.kallsyms])
+	ffffffffa9ce97c1 zap_present_ptes.constprop.0+0x331 ([kernel.kallsyms])
+	ffffffffa9ce9db9 zap_pte_range+0x199 ([kernel.kallsyms])
+	ffffffffa9cea2f0 zap_pmd_range.isra.0+0x120 ([kernel.kallsyms])
+	ffffffffa9cea50b zap_pud_range.isra.0+0xab ([kernel.kallsyms])
+	ffffffffa9ceab39 unmap_page_range+0x219 ([kernel.kallsyms])
+	ffffffffa9cead19 unmap_single_vma+0x89 ([kernel.kallsyms])
+	ffffffffa9ceb325 unmap_vmas+0xb5 ([kernel.kallsyms])
+	ffffffffa9cfabea exit_mmap+0xfa ([kernel.kallsyms])
+	ffffffffa9983559 mmput+0x69 ([kernel.kallsyms])
+	ffffffffa998e068 exit_mm+0xb8 ([kernel.kallsyms])
+	ffffffffa998e30c do_exit+0x22c ([kernel.kallsyms])
+	ffffffffa998e7b4 do_group_exit+0x34 ([kernel.kallsyms])
+	ffffffffa998e868 __x64_sys_exit_group+0x18 ([kernel.kallsyms])
+	ffffffffa98852e6 x64_sys_call+0x1666 ([kernel.kallsyms])
+	ffffffffaaad579e do_syscall_64+0x7e ([kernel.kallsyms])
+	ffffffffa960012b entry_SYSCALL_64_after_hwframe+0x76 ([kernel.kallsyms])
+

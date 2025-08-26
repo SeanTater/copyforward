@@ -1,4 +1,11 @@
 use crate::core::{CopyForward, GreedySubstringConfig, Segment};
+use std::cell::Cell;
+use ahash::AHashMap as HashMap;
+
+thread_local! {
+    static CAP_OVERRIDE: Cell<Option<usize>> = Cell::new(None);
+    static NCAP_OVERRIDE: Cell<Option<usize>> = Cell::new(None);
+}
 
 /// Approximate hashed greedy that caps per-candidate extension to a fixed length
 /// and then coalesces adjacent references that point to consecutive source
@@ -10,7 +17,22 @@ pub struct CappedHashedGreedy {
 }
 
 impl CappedHashedGreedy {
-    const CAP_LEN: usize = 64;
+    // CAP_LEN and NCAP made runtime-configurable via env vars for sweeps.
+    const DEFAULT_CAP_LEN: usize = 64;
+    const DEFAULT_NCAP: usize = 64;
+    fn cap_len() -> usize {
+        CAP_OVERRIDE.with(|c| c.get()).unwrap_or_else(|| std::env::var("CAP_LEN").ok().and_then(|s| s.parse().ok()).unwrap_or(Self::DEFAULT_CAP_LEN))
+    }
+
+    fn ncap() -> usize {
+        NCAP_OVERRIDE.with(|c| c.get()).unwrap_or_else(|| std::env::var("NCAP").ok().and_then(|s| s.parse().ok()).unwrap_or(Self::DEFAULT_NCAP))
+    }
+
+    // Set per-thread overrides for cap and ncap (used by sweep harness).
+    pub fn set_overrides(cap: Option<usize>, ncap: Option<usize>) {
+        CAP_OVERRIDE.with(|c| c.set(cap));
+        NCAP_OVERRIDE.with(|c| c.set(ncap));
+    }
 
     fn prefix_hashes(s: &[u8], base: u64) -> (Vec<u64>, Vec<u64>) {
         let mut h = Vec::with_capacity(s.len() + 1);
@@ -31,7 +53,7 @@ impl CappedHashedGreedy {
     }
 
     fn insert_kmers_into_table(
-        table: &mut std::collections::HashMap<u64, std::collections::HashMap<u64, Vec<(usize, usize)>>>,
+        table: &mut std::collections::HashMap<u64, std::collections::HashMap<u64, (usize, usize)>>,
         messages_vec: &Vec<String>,
         prefixes: &Vec<(Vec<u64>, Vec<u64>)>,
         j: usize,
@@ -44,7 +66,7 @@ impl CappedHashedGreedy {
             for start in 0..=(messages_vec[j].len() - k) {
                 let h = Self::range_hash(ref_h, ref_p, start, start + k);
                 // compute cap-window hash (ensure we don't overflow bounds)
-                let cap_end = std::cmp::min(messages_vec[j].len(), start + Self::CAP_LEN);
+                let cap_end = std::cmp::min(messages_vec[j].len(), start + Self::cap_len());
                 let cap_h = Self::range_hash(ref_h, ref_p, start, cap_end);
 
                 let inner = table.entry(h).or_default();
@@ -53,7 +75,7 @@ impl CappedHashedGreedy {
                 if inner.contains_key(&cap_h) {
                     skipped += 1;
                 } else {
-                    inner.insert(cap_h, vec![(j, start)]);
+                    inner.insert(cap_h, (j, start));
                     added += 1;
                 }
             }
@@ -72,7 +94,7 @@ impl CappedHashedGreedy {
         let mut match_len = initial_k;
         let ext_t0 = std::time::Instant::now();
 
-        while match_len < Self::CAP_LEN
+        while match_len < Self::cap_len()
             && cursor + match_len < bytes.len()
             && ref_start + match_len < prev_bytes.len()
             && bytes[cursor + match_len] == prev_bytes[ref_start + match_len]
@@ -148,8 +170,8 @@ impl CappedHashedGreedy {
             0
         };
         // Outer map: k-mer hash -> inner map
-        // Inner map: cap-window hash -> Vec<(msg_idx,start)>
-        let mut table: HashMap<u64, std::collections::HashMap<u64, Vec<(usize, usize)>>> =
+        // Inner map: cap-window hash -> single representative (msg_idx,start)
+        let mut table: HashMap<u64, HashMap<u64, (usize, usize)>> =
             HashMap::with_capacity((total_kmers / 2).max(16));
 
         for i in 0..messages_vec.len() {
@@ -182,35 +204,30 @@ impl CappedHashedGreedy {
                         // iterate over representatives
                         let mut seen = 0usize;
                         // precompute cap-window hash for current cursor for quick prefilter
-                        let cap_end_cur = std::cmp::min(bytes.len(), cursor + Self::CAP_LEN);
+                        let cap_len = Self::cap_len();
+                        let ncap = Self::ncap();
+                        let cap_end_cur = std::cmp::min(bytes.len(), cursor + cap_len);
                         let cap_hash_cur = Self::range_hash(&cur_h, &cur_p, cursor, cap_end_cur);
-                        for (_cap_h, vecpos) in inner.iter() {
-                            for &(midx, ref_start) in vecpos.iter() {
-                                // only allow references to prior messages
-                                if midx >= i { continue; }
-                                if seen >= 64 {
-                                    break;
-                                }
-                                // cheap prefilter: compare cap-window hash of candidate
-                                let (prev_h, prev_p) = &prefixes[midx];
-                                let prev_len = prev_h.len() - 1;
-                                let cap_end_prev = std::cmp::min(prev_len, ref_start + Self::CAP_LEN);
-                                let cap_hash_prev = Self::range_hash(prev_h, prev_p, ref_start, cap_end_prev);
-                                if cap_hash_prev != cap_hash_cur {
-                                    seen += 1; // count as examined
-                                    continue;
-                                }
-                                crate::instrumentation::add_candidates(1);
-                                let prev = &messages_vec[midx];
-                                let prev_bytes = prev.as_bytes();
-                                let match_len = Self::extend_candidate_capped(bytes, prev_bytes, cursor, ref_start, k);
-                                if best_match.is_none() || match_len > best_match.unwrap().0 {
-                                    best_match = Some((match_len, midx, ref_start));
-                                }
-                                seen += 1;
+                        for (_cap_h, repr) in inner.iter() {
+                            let (midx, ref_start) = *repr;
+                            // only allow references to prior messages
+                            if midx >= i { continue; }
+                            if seen >= ncap { break; }
+                            let (prev_h, prev_p) = &prefixes[midx];
+                            let prev_len = prev_h.len() - 1;
+                            let cap_end_prev = std::cmp::min(prev_len, ref_start + cap_len);
+                            let cap_hash_prev = Self::range_hash(prev_h, prev_p, ref_start, cap_end_prev);
+                            if cap_hash_prev != cap_hash_cur { seen += 1; continue; }
+                            crate::instrumentation::add_candidates(1);
+                            let prev = &messages_vec[midx];
+                            let prev_bytes = prev.as_bytes();
+                            let match_len = Self::extend_candidate_capped(bytes, prev_bytes, cursor, ref_start, k);
+                            if best_match.is_none() || match_len > best_match.unwrap().0 {
+                                best_match = Some((match_len, midx, ref_start));
                             }
-                            if seen >= 64 { break; }
+                            seen += 1;
                         }
+                        if seen >= ncap { /* nothing */ }
                     }
                 }
 
