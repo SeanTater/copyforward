@@ -209,7 +209,7 @@ pub fn compute_capped_segments(messages: &[Vec<u32>], config: &Config) -> Vec<Ve
                     len,
                 } => {
                     let cur_msg = *message_idx;
-                    let mut cur_start = *start;
+                    let cur_start = *start;
                     let mut cur_len = *len;
                     i += 1;
                     while i < segs.len() {

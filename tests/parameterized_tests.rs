@@ -26,8 +26,8 @@ where
         .iter()
         .flat_map(|v| v.iter())
         .map(|seg| match seg {
-            &Segment::Literal(ref s) => s.len(),
-            &Segment::Reference { .. } => 3,
+            Segment::Literal(s) => s.len(),
+            Segment::Reference { .. } => 3,
         })
         .sum();
     let orig: usize = orig_msgs.iter().map(|s| s.len()).sum();
@@ -64,19 +64,13 @@ fn run_partial_overlaps_across_multiple_messages<C>(cf: C)
 where
     C: CopyForward,
 {
-    let msgs = &[
-        "hello world everyone",
-        "world peace and harmony",
-        "hello world peace and joy for everyone",
-    ];
     let segs = cf.segments();
     assert!(segs[2].len() >= 2, "Should have multiple segments");
     let rendered = cf.render_with(|_, _, _, text| text.to_string());
     assert_eq!(rendered[2], "hello world peace and joy for everyone");
-    let has_long_match = segs[2].iter().any(|seg| match seg {
-        &Segment::Reference { len, .. } if len >= Config::default().min_match_len => true,
-        _ => false,
-    });
+    let has_long_match = segs[2]
+        .iter()
+        .any(|seg| matches!(seg, Segment::Reference { len, .. } if *len >= Config::default().min_match_len));
     assert!(
         has_long_match,
         "Should have at least one match of 10+ characters"

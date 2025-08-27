@@ -13,13 +13,13 @@ fn capped_preserves_rendering_small() {
     let rendered = cap.render_with(|_, _, _, s| s.to_string());
 
     for (i, r) in rendered.iter().enumerate() {
-        if r != &refs[i] {
+        if r != refs[i] {
             eprintln!("EXPECTED:\n{}", refs[i]);
             eprintln!("GOT:\n{}", r);
             let cf = approximate(&refs, Config::default());
             eprintln!("SEGS: {:?}", cf.segments()[i]);
         }
-        assert_eq!(r, &refs[i]);
+        assert_eq!(r, refs[i]);
     }
 }
 
@@ -43,13 +43,13 @@ fn capped_coalesces_adjacent_refs() {
     let second = &segs[1];
     let mut found_ref = false;
     for seg in second.iter() {
-        if let copyforward::Segment::Reference {
-            message_idx, len, ..
-        } = seg
-        {
-            if message_idx == &0 && len >= &64usize {
-                found_ref = true;
-            }
+        if matches!(
+            seg,
+            copyforward::Segment::Reference { message_idx, len, .. }
+                if *message_idx == 0 && *len >= 64usize
+        ) {
+            found_ref = true;
+            break;
         }
     }
     assert!(found_ref, "expected a coalesced reference of length >= 64");

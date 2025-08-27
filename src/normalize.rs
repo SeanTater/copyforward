@@ -1,16 +1,10 @@
-/// Utilities to normalize text into u32 code points.
-///
-/// The engines operate over sequences of u32 (Unicode scalar values). For text,
-/// we map `char` to `u32`. The token-only core uses direct u32 conversion.
+//! Utilities to normalize text into u32 code points.
+//!
+//! The engines operate over sequences of u32 (Unicode scalar values). For text,
+//! we map `char` to `u32`. The token-only core uses direct u32 conversion.
 
-/// Convert a UTF-8 string into a vector of Unicode scalar values (u32) and a
-/// parallel vector of byte offsets of length codes.len() + 1.
+/// Build a String from a slice of Unicode scalar values (u32).
 ///
-/// Invariants:
-/// - `offsets[0] == 0`
-/// - `offsets.len() == codes.len() + 1`
-/// - `offsets.last() == Some(&text.len())`
-/// Build a String from a slice of u32 Unicode scalar values.
 /// Panics if any value is not a valid Unicode scalar; this should not happen
 /// when values originated from Rust `char` conversions.
 pub fn string_from_u32(codes: &[u32]) -> String {

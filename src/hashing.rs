@@ -1,7 +1,7 @@
-/// Shared hashing utilities for polynomial rolling hashes used by hashed algorithms.
-///
-/// Uses wrapping u64 arithmetic (mod 2^64) for speed. This is not cryptographically
-/// secure but collision rates are extremely low in practice for text compression.
+//! Shared hashing utilities for polynomial rolling hashes used by hashed algorithms.
+//!
+//! Uses wrapping u64 arithmetic (mod 2^64) for speed. This is not cryptographically
+//! secure but collision rates are extremely low in practice for text compression.
 
 /// Compute rolling prefix hashes and powers for a byte string.
 /// Returns (h, p) where h[r] - h[l]*p[r-l] yields the rolling hash for s[l..r).

@@ -67,6 +67,7 @@ impl Tokenize for WhitespaceTokenizer {
 /// Get a tokenizer by name.
 /// Currently supports:
 /// - "whitespace": simple whitespace tokenizer.
+///
 /// Future: "hf:<model>" via the `tokenizers` feature.
 pub fn get_tokenizer(name: &str) -> Result<Box<dyn Tokenize + Send>, String> {
     match name {

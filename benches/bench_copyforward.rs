@@ -1,6 +1,4 @@
-use copyforward::{
-    CappedHashedGreedy, CopyForward, GreedySubstring, HashedGreedy, HashedGreedyBinary,
-};
+use copyforward::{Config, CopyForward, approximate, exact};
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
@@ -61,13 +59,13 @@ fn bench_algorithms(c: &mut Criterion) {
             let msgs = generate_thread(&mut rng, msg_count, base_s);
             let msg_refs: Vec<&str> = msgs.iter().map(|s| s.as_str()).collect();
 
-            // HashedGreedy
+            // Exact (binary-search extension)
             group.bench_with_input(
-                BenchmarkId::from_parameter(format!("hashed_msgs{}_base{}", msg_count, base_s)),
+                BenchmarkId::from_parameter(format!("exact_msgs{}_base{}", msg_count, base_s)),
                 &msg_refs,
                 |b, m| {
                     b.iter(|| {
-                        let cf = HashedGreedy::from_messages(m);
+                        let cf = exact(m, Config::default());
                         // compute sizes
                         let orig: usize = m.iter().map(|s| s.len()).sum();
                         let segs = cf.segments();
@@ -85,40 +83,13 @@ fn bench_algorithms(c: &mut Criterion) {
                 },
             );
 
-            // HashedGreedyBinary (binary-search extension)
-            group.bench_with_input(
-                BenchmarkId::from_parameter(format!(
-                    "hashed_binary_msgs{}_base{}",
-                    msg_count, base_s
-                )),
-                &msg_refs,
-                |b, m| {
-                    b.iter(|| {
-                        let cf = HashedGreedyBinary::from_messages(m);
-                        // compute sizes
-                        let orig: usize = m.iter().map(|s| s.len()).sum();
-                        let segs = cf.segments();
-                        let deduped: usize = segs
-                            .iter()
-                            .flat_map(|v| v.iter())
-                            .map(|seg| match seg {
-                                copyforward::Segment::Literal(s) => s.len(),
-                                copyforward::Segment::Reference { .. } => 3, // replacement approx
-                            })
-                            .sum();
-                        // ensure at least some deduping happened
-                        assert!(deduped as f64 <= (orig as f64) * 0.95);
-                    })
-                },
-            );
-
-            // CappedHashedGreedy (approximate with cap + coalesce)
+            // Approximate (cap + coalesce)
             group.bench_with_input(
                 BenchmarkId::from_parameter(format!("capped_msgs{}_base{}", msg_count, base_s)),
                 &msg_refs,
                 |b, m| {
                     b.iter(|| {
-                        let cf = CappedHashedGreedy::from_messages(m);
+                        let cf = approximate(m, Config::default());
                         // compute sizes
                         let orig: usize = m.iter().map(|s| s.len()).sum();
                         let segs = cf.segments();
