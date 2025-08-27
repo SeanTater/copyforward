@@ -34,7 +34,10 @@ code lives and how to contribute with minimal friction.
 - PRs should include a description, linked issue (if any), and test
   coverage for behavior changes. Keep changes scoped and documented.
 
-## Notes
-- Remove debugging/profiling remnants before opening a PR. If
-  performance work is needed, document repro steps and keep changes
-  reversible.
+## Rules
+These are mistakes you made in the past that you need to specifically watch out for:
+
+- Never leave breadcrumbs like "// implementation removed" when you remove a feature
+- Don't prefix variables with _. Remove them instead. (Except mutex guards)
+- Don't use unix tools like `applypatch` or `git patch` to change files
+- Don't leave stubs or facades behind when refactoring. Remove the original instead.
