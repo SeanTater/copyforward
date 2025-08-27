@@ -18,6 +18,10 @@ jobs:
           toolchain: stable
           components: clippy
 
+      - name: Configure git for authenticated GitHub fetches
+        run: |
+          git config --global url."https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf https://github.com/
+
       - name: Run pre-commit
         uses: pre-commit/action@v3.0.1
         with:
@@ -28,4 +32,3 @@ jobs:
 
       - name: Run tests
         run: cargo test --all
-
