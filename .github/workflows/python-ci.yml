@@ -25,11 +25,14 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install maturin pytest numpy
 
-      - name: Build and install extension
+      - name: Build wheel (Rust -> Python)
         run: |
-          maturin develop --release
+          maturin build --release --features python
+
+      - name: Install wheel into runner Python
+        run: |
+          pip install --force-reinstall target/wheels/*.whl
 
       - name: Run pytest
         run: |
           pytest -q
-
