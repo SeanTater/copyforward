@@ -136,7 +136,7 @@ impl PyCopyForwardText {
     #[pyo3(signature = (messages, *, exact_mode=true, min_match_len=4, lookback=None, cap_len=64, ncap=64))]
     fn from_texts(
         _cls: &pyo3::types::PyType,
-        messages: Vec<String>,
+        messages: Vec<Option<String>>,
         exact_mode: bool,
         min_match_len: usize,
         lookback: Option<usize>,
@@ -149,11 +149,10 @@ impl PyCopyForwardText {
             cap_len,
             ncap,
         };
-        let refs: Vec<&str> = messages.iter().map(|s| s.as_str()).collect();
         let inner = if exact_mode {
-            TextAlg::Exact(exact(&refs, config))
+            TextAlg::Exact(exact(&messages, config))
         } else {
-            TextAlg::Approx(approximate(&refs, config))
+            TextAlg::Approx(approximate(&messages, config))
         };
         Ok(PyCopyForwardText { inner })
     }
@@ -182,18 +181,13 @@ impl PyCopyForwardText {
         })
     }
 
-    #[pyo3(signature = (replacement=None))]
-    fn render(&self, replacement: Option<&str>) -> Vec<String> {
-        match (&self.inner, replacement) {
-            (TextAlg::Exact(inner), Some(rep)) => CopyForward::render_with_static(inner, rep),
-            (TextAlg::Approx(inner), Some(rep)) => CopyForward::render_with_static(inner, rep),
-            (TextAlg::Exact(inner), None) => {
-                CopyForward::render_with(inner, |_, _, _, text| text.to_string())
-            }
-            (TextAlg::Approx(inner), None) => {
-                CopyForward::render_with(inner, |_, _, _, text| text.to_string())
-            }
-        }
+    fn render(&self, replacement: &str) -> Vec<Option<String>> {
+        let result = match &self.inner {
+            TextAlg::Exact(inner) => CopyForward::render_with_static(inner, replacement),
+            TextAlg::Approx(inner) => CopyForward::render_with_static(inner, replacement),
+        };
+        // Convert empty strings (from None entries) back to None for Python
+        result.into_iter().map(|s| if s.is_empty() { None } else { Some(s) }).collect()
     }
 
     fn compression_ratio(&self) -> f64 {
@@ -243,7 +237,7 @@ impl PyCopyForwardTokens {
     #[pyo3(signature = (messages, *, exact_mode=true, min_match_len=4, lookback=None, cap_len=64, ncap=64))]
     fn from_tokens(
         _cls: &pyo3::types::PyType,
-        messages: Vec<Vec<u32>>,
+        messages: Vec<Option<Vec<u32>>>,
         exact_mode: bool,
         min_match_len: usize,
         lookback: Option<usize>,
@@ -256,11 +250,10 @@ impl PyCopyForwardTokens {
             cap_len,
             ncap,
         };
-        let refs: Vec<&[u32]> = messages.iter().map(|v| v.as_slice()).collect();
         let inner = if exact_mode {
-            TokensAlg::Exact(exact_tokens(&refs, config))
+            TokensAlg::Exact(exact_tokens(&messages, config))
         } else {
-            TokensAlg::Approx(approximate_tokens(&refs, config))
+            TokensAlg::Approx(approximate_tokens(&messages, config))
         };
         Ok(PyCopyForwardTokens {
             inner,
@@ -273,7 +266,7 @@ impl PyCopyForwardTokens {
     #[pyo3(signature = (messages, tokenizer, *, exact_mode=true, min_match_len=4, lookback=None, cap_len=64, ncap=64))]
     fn from_texts_with_tokenizer(
         _cls: &pyo3::types::PyType,
-        messages: Vec<String>,
+        messages: Vec<Option<String>>,
         tokenizer: String,
         exact_mode: bool,
         min_match_len: usize,
@@ -288,12 +281,11 @@ impl PyCopyForwardTokens {
             ncap,
         };
         let mut tok = get_tokenizer(&tokenizer).map_err(PyTypeError::new_err)?;
-        let toks: Vec<Vec<u32>> = messages.into_iter().map(|s| tok.encode(&s)).collect();
-        let refs: Vec<&[u32]> = toks.iter().map(|v| v.as_slice()).collect();
+        let toks: Vec<Option<Vec<u32>>> = messages.into_iter().map(|opt_s| opt_s.map(|s| tok.encode(&s))).collect();
         let inner = if exact_mode {
-            TokensAlg::Exact(exact_tokens(&refs, config))
+            TokensAlg::Exact(exact_tokens(&toks, config))
         } else {
-            TokensAlg::Approx(approximate_tokens(&refs, config))
+            TokensAlg::Approx(approximate_tokens(&toks, config))
         };
         Ok(PyCopyForwardTokens {
             inner,
@@ -325,65 +317,38 @@ impl PyCopyForwardTokens {
         })
     }
 
-    #[pyo3(signature = (replacement=None, *, as_numpy=false))]
-    fn render(&self, replacement: Option<&PyAny>, as_numpy: bool) -> PyResult<pyo3::PyObject> {
+    #[pyo3(signature = (replacement, *, as_numpy=false))]
+    fn render(&self, replacement: &PyAny, as_numpy: bool) -> PyResult<pyo3::PyObject> {
         Python::with_gil(|py| {
-            let out_vecs: Vec<Vec<u32>> = match (&self.inner, replacement) {
-                (TokensAlg::Exact(inner), Some(obj)) => {
-                    let repl_vec: Vec<u32> = if let Ok(arr) = obj.extract::<PyReadonlyArray1<u32>>()
-                    {
-                        arr.as_slice()?.to_vec()
-                    } else if let Ok(seq) = obj.downcast::<PySequence>() {
-                        let n = seq.len()?;
-                        let mut v = Vec::with_capacity(n as usize);
-                        for i in 0..n {
-                            let it = seq.get_item(i)?;
-                            let val: u64 = it.extract()?;
-                            if val > u32::MAX as u64 {
-                                return Err(PyTypeError::new_err(
-                                    "replacement token exceeds u32 range",
-                                ));
-                            }
-                            v.push(val as u32);
-                        }
-                        v
-                    } else {
+            let repl_vec: Vec<u32> = if let Ok(arr) = replacement.extract::<PyReadonlyArray1<u32>>()
+            {
+                arr.as_slice()?.to_vec()
+            } else if let Ok(seq) = replacement.downcast::<PySequence>() {
+                let n = seq.len()?;
+                let mut v = Vec::with_capacity(n as usize);
+                for i in 0..n {
+                    let it = seq.get_item(i)?;
+                    let val: u64 = it.extract()?;
+                    if val > u32::MAX as u64 {
                         return Err(PyTypeError::new_err(
-                            "replacement must be a sequence of ints or np.uint32 array",
+                            "replacement token exceeds u32 range",
                         ));
-                    };
+                    }
+                    v.push(val as u32);
+                }
+                v
+            } else {
+                return Err(PyTypeError::new_err(
+                    "replacement must be a sequence of ints or np.uint32 array",
+                ));
+            };
+            
+            let out_vecs: Vec<Vec<u32>> = match &self.inner {
+                TokensAlg::Exact(inner) => {
                     CopyForwardTokens::render_with(inner, |_, _, _, _| repl_vec.clone())
                 }
-                (TokensAlg::Approx(inner), Some(obj)) => {
-                    let repl_vec: Vec<u32> = if let Ok(arr) = obj.extract::<PyReadonlyArray1<u32>>()
-                    {
-                        arr.as_slice()?.to_vec()
-                    } else if let Ok(seq) = obj.downcast::<PySequence>() {
-                        let n = seq.len()?;
-                        let mut v = Vec::with_capacity(n as usize);
-                        for i in 0..n {
-                            let it = seq.get_item(i)?;
-                            let val: u64 = it.extract()?;
-                            if val > u32::MAX as u64 {
-                                return Err(PyTypeError::new_err(
-                                    "replacement token exceeds u32 range",
-                                ));
-                            }
-                            v.push(val as u32);
-                        }
-                        v
-                    } else {
-                        return Err(PyTypeError::new_err(
-                            "replacement must be a sequence of ints or np.uint32 array",
-                        ));
-                    };
+                TokensAlg::Approx(inner) => {
                     CopyForwardTokens::render_with(inner, |_, _, _, _| repl_vec.clone())
-                }
-                (TokensAlg::Exact(inner), None) => {
-                    CopyForwardTokens::render_with(inner, |_, _, _, slice| slice.to_vec())
-                }
-                (TokensAlg::Approx(inner), None) => {
-                    CopyForwardTokens::render_with(inner, |_, _, _, slice| slice.to_vec())
                 }
             };
             if as_numpy {
@@ -401,18 +366,19 @@ impl PyCopyForwardTokens {
 
     /// Decode rendered token outputs back to text using the stored tokenizer.
     /// Raises a TypeError if the instance was not created with a tokenizer.
-    fn render_texts(&self) -> PyResult<Vec<String>> {
-        let tok = self.tokenizer.as_ref().ok_or_else(|| {
+    fn render_texts(&mut self, replacement: &str) -> PyResult<Vec<String>> {
+        let tok = self.tokenizer.as_mut().ok_or_else(|| {
             PyTypeError::new_err(
                 "render_texts() requires instance created via from_texts_with_tokenizer",
             )
         })?;
+        let repl_tokens = tok.encode(replacement);
         let tokens: Vec<Vec<u32>> = match &self.inner {
             TokensAlg::Exact(inner) => {
-                CopyForwardTokens::render_with(inner, |_, _, _, slice| slice.to_vec())
+                CopyForwardTokens::render_with(inner, |_, _, _, _| repl_tokens.clone())
             }
             TokensAlg::Approx(inner) => {
-                CopyForwardTokens::render_with(inner, |_, _, _, slice| slice.to_vec())
+                CopyForwardTokens::render_with(inner, |_, _, _, _| repl_tokens.clone())
             }
         };
         Ok(tokens.into_iter().map(|v| tok.decode(&v)).collect())

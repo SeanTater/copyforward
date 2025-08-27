@@ -63,6 +63,48 @@ pub mod tokenization;
 // Public API - only expose what users need
 pub use crate::core::{Config, CopyForward, CopyForwardTokens, Segment, TokenSegment};
 
+/// Trait for types that can be used as message inputs, supporting both regular strings and None values.
+pub trait MessageLike {
+    fn as_message(&self) -> Option<&str>;
+}
+
+impl MessageLike for &str {
+    fn as_message(&self) -> Option<&str> { Some(self) }
+}
+
+impl MessageLike for Option<&str> {
+    fn as_message(&self) -> Option<&str> { *self }
+}
+
+impl MessageLike for String {
+    fn as_message(&self) -> Option<&str> { Some(self.as_str()) }
+}
+
+impl MessageLike for Option<String> {
+    fn as_message(&self) -> Option<&str> { self.as_deref() }
+}
+
+/// Trait for types that can be used as token inputs, supporting both regular tokens and None values.
+pub trait TokenLike {
+    fn as_tokens(&self) -> Option<&[u32]>;
+}
+
+impl TokenLike for &[u32] {
+    fn as_tokens(&self) -> Option<&[u32]> { Some(self) }
+}
+
+impl TokenLike for Option<&[u32]> {
+    fn as_tokens(&self) -> Option<&[u32]> { *self }
+}
+
+impl TokenLike for Vec<u32> {
+    fn as_tokens(&self) -> Option<&[u32]> { Some(self.as_slice()) }
+}
+
+impl TokenLike for Option<Vec<u32>> {
+    fn as_tokens(&self) -> Option<&[u32]> { self.as_deref() }
+}
+
 /// Exact copy-forward compression for token sequences (u32 IDs).
 pub type ExactTokens = hashed_binary::HashedGreedyBinary;
 
@@ -85,6 +127,8 @@ pub struct Exact {
     inner: ExactTokens,
     originals: Vec<String>,
     offsets: Vec<Vec<usize>>, // byte offsets per Unicode-scalar boundary
+    valid_indices: Vec<usize>, // indices of non-None messages
+    none_mask: Vec<bool>, // true for None entries
 }
 
 /// Text-mode wrapper for approximate algorithm routing through the token core.
@@ -93,6 +137,8 @@ pub struct Approximate {
     inner: ApproximateTokens,
     originals: Vec<String>,
     offsets: Vec<Vec<usize>>, // byte offsets per Unicode-scalar boundary
+    valid_indices: Vec<usize>, // indices of non-None messages
+    none_mask: Vec<bool>, // true for None entries
 }
 
 fn compute_offsets(s: &str) -> Vec<usize> {
@@ -114,33 +160,45 @@ fn compute_offsets(s: &str) -> Vec<usize> {
 /// Uses binary search extension to find optimal substring matches. Perfect compression
 /// but slower than [`approximate()`] for large texts.
 ///
-/// # Example
+/// Supports both regular string slices and optional strings for handling missing values:
 /// ```
 /// use copyforward::{exact, Config, CopyForward};
 ///
+/// // Regular usage
 /// let messages = &["Hello world", "Hello world today"];
 /// let compressed = exact(messages, Config::default());
-/// let segments = compressed.segments();
+///
+/// // With None values (for dataframes)
+/// let messages_with_none = &[Some("Hello"), None, Some("World")];
+/// let compressed = exact(messages_with_none, Config::default());
 /// ```
-pub fn exact(messages: &[&str], config: Config) -> Exact {
-    let originals: Vec<String> = messages.iter().map(|s| (*s).to_string()).collect();
+pub fn exact<M: MessageLike>(messages: &[M], config: Config) -> Exact {
+    let opts: Vec<Option<&str>> = messages.iter().map(|m| m.as_message()).collect();
+    let originals: Vec<String> = opts.iter().map(|opt| opt.unwrap_or("").to_string()).collect();
     let offsets: Vec<Vec<usize>> = originals.iter().map(|s| compute_offsets(s)).collect();
     let toks: Vec<Vec<u32>> = originals
         .iter()
         .map(|s| normalize::string_to_u32s(s))
         .collect();
-    let refs: Vec<&[u32]> = toks.iter().map(|v| v.as_slice()).collect();
-    let inner = exact_tokens(&refs, config);
+    let valid_indices: Vec<usize> = opts.iter().enumerate().filter_map(|(i, opt)| if opt.is_some() { Some(i) } else { None }).collect();
+    let filtered_toks: Vec<Vec<u32>> = valid_indices.iter().map(|&i| toks[i].clone()).collect();
+    let refs: Vec<&[u32]> = filtered_toks.iter().map(|v| v.as_slice()).collect();
+    let inner = hashed_binary::HashedGreedyBinary::new_tokens(&refs, config);
     Exact {
         inner,
         originals,
         offsets,
+        valid_indices,
+        none_mask: opts.iter().map(|opt| opt.is_none()).collect(),
     }
 }
 
 /// Create an exact token-mode compressor over u32 token sequences.
-pub fn exact_tokens(messages: &[&[u32]], config: Config) -> ExactTokens {
-    hashed_binary::HashedGreedyBinary::new_tokens(messages, config)
+/// 
+/// Supports both regular token slices and optional token slices for handling missing values.
+pub fn exact_tokens<T: TokenLike>(messages: &[T], config: Config) -> ExactTokens {
+    let filtered_tokens: Vec<&[u32]> = messages.iter().filter_map(|t| t.as_tokens()).collect();
+    hashed_binary::HashedGreedyBinary::new_tokens(&filtered_tokens, config)
 }
 
 /// Create an approximate copy-forward compressor.
@@ -148,58 +206,78 @@ pub fn exact_tokens(messages: &[&[u32]], config: Config) -> ExactTokens {
 /// Caps extension at 64 bytes for ~2x speed improvement over [`exact()`]. May split
 /// some long matches but still achieves excellent compression ratios.
 ///
-/// # Example
+/// Supports both regular string slices and optional strings for handling missing values:
 /// ```
 /// use copyforward::{approximate, Config, CopyForward};
 ///
+/// // Regular usage
 /// let messages = &["Hello world", "Hello world today"];  
 /// let compressed = approximate(messages, Config::default());
-/// let ratio = compressed.segments().len() as f64 / messages.len() as f64;
+///
+/// // With None values (for dataframes)
+/// let messages_with_none = &[Some("Hello"), None, Some("World")];
+/// let compressed = approximate(messages_with_none, Config::default());
 /// ```
-pub fn approximate(messages: &[&str], config: Config) -> Approximate {
-    let originals: Vec<String> = messages.iter().map(|s| (*s).to_string()).collect();
+pub fn approximate<M: MessageLike>(messages: &[M], config: Config) -> Approximate {
+    let opts: Vec<Option<&str>> = messages.iter().map(|m| m.as_message()).collect();
+    let originals: Vec<String> = opts.iter().map(|opt| opt.unwrap_or("").to_string()).collect();
     let offsets: Vec<Vec<usize>> = originals.iter().map(|s| compute_offsets(s)).collect();
     let toks: Vec<Vec<u32>> = originals
         .iter()
         .map(|s| normalize::string_to_u32s(s))
         .collect();
-    let refs: Vec<&[u32]> = toks.iter().map(|v| v.as_slice()).collect();
-    let inner = approximate_tokens(&refs, config);
+    let valid_indices: Vec<usize> = opts.iter().enumerate().filter_map(|(i, opt)| if opt.is_some() { Some(i) } else { None }).collect();
+    let filtered_toks: Vec<Vec<u32>> = valid_indices.iter().map(|&i| toks[i].clone()).collect();
+    let refs: Vec<&[u32]> = filtered_toks.iter().map(|v| v.as_slice()).collect();
+    let inner = capped::CappedHashedGreedy::new_tokens(&refs, config);
     Approximate {
         inner,
         originals,
         offsets,
+        valid_indices,
+        none_mask: opts.iter().map(|opt| opt.is_none()).collect(),
     }
 }
 
 impl CopyForward for Exact {
     fn segments(&self) -> Vec<Vec<Segment>> {
         let token_segs = <ExactTokens as CopyForwardTokens>::segments(&self.inner);
-        let mut out: Vec<Vec<Segment>> = Vec::with_capacity(token_segs.len());
-        for segs in token_segs.into_iter() {
-            let mut v: Vec<Segment> = Vec::with_capacity(segs.len());
-            for seg in segs {
-                match seg {
-                    TokenSegment::Literal(toks) => {
-                        v.push(Segment::Literal(normalize::u32s_to_string(&toks)))
-                    }
-                    TokenSegment::Reference {
-                        message_idx,
-                        start,
-                        len,
-                    } => {
-                        let offs = &self.offsets[message_idx];
-                        let bstart = offs[start];
-                        let bend = offs[start + len];
-                        v.push(Segment::Reference {
-                            message_idx,
-                            start: bstart,
-                            len: bend - bstart,
-                        });
+        let mut out: Vec<Vec<Segment>> = Vec::with_capacity(self.none_mask.len());
+        let mut token_seg_idx = 0;
+        
+        for &is_none in &self.none_mask {
+            if is_none {
+                // Empty segments for None entries
+                out.push(vec![]);
+            } else {
+                let segs = &token_segs[token_seg_idx];
+                let mut v: Vec<Segment> = Vec::with_capacity(segs.len());
+                for seg in segs {
+                    match seg {
+                        TokenSegment::Literal(toks) => {
+                            v.push(Segment::Literal(normalize::u32s_to_string(toks)))
+                        }
+                        TokenSegment::Reference {
+                            message_idx: ref_idx,
+                            start,
+                            len,
+                        } => {
+                            // Map back to original indices
+                            let orig_msg_idx = self.valid_indices[*ref_idx];
+                            let offs = &self.offsets[orig_msg_idx];
+                            let bstart = offs[*start];
+                            let bend = offs[start + len];
+                            v.push(Segment::Reference {
+                                message_idx: orig_msg_idx,
+                                start: bstart,
+                                len: bend - bstart,
+                            });
+                        }
                     }
                 }
+                out.push(v);
+                token_seg_idx += 1;
             }
-            out.push(v);
         }
         out
     }
@@ -209,27 +287,37 @@ impl CopyForward for Exact {
         F: FnMut(usize, usize, usize, &str) -> String,
     {
         let token_segs = <ExactTokens as CopyForwardTokens>::segments(&self.inner);
-        let mut out: Vec<String> = Vec::with_capacity(token_segs.len());
-        for segs in token_segs.into_iter() {
-            let mut s = String::new();
-            for seg in segs {
-                match seg {
-                    TokenSegment::Literal(toks) => s.push_str(&normalize::u32s_to_string(&toks)),
-                    TokenSegment::Reference {
-                        message_idx,
-                        start,
-                        len,
-                    } => {
-                        let offs = &self.offsets[message_idx];
-                        let bstart = offs[start];
-                        let bend = offs[start + len];
-                        let ref_text = &self.originals[message_idx][bstart..bend];
-                        let replaced = replacer(message_idx, bstart, bend - bstart, ref_text);
-                        s.push_str(&replaced);
+        let mut out: Vec<String> = Vec::with_capacity(self.none_mask.len());
+        let mut token_seg_idx = 0;
+        
+        for &is_none in &self.none_mask {
+            if is_none {
+                // Return original empty/none value
+                out.push(String::new());
+            } else {
+                let segs = &token_segs[token_seg_idx];
+                let mut s = String::new();
+                for seg in segs {
+                    match seg {
+                        TokenSegment::Literal(toks) => s.push_str(&normalize::u32s_to_string(toks)),
+                        TokenSegment::Reference {
+                            message_idx: ref_idx,
+                            start,
+                            len,
+                        } => {
+                            let orig_msg_idx = self.valid_indices[*ref_idx];
+                            let offs = &self.offsets[orig_msg_idx];
+                            let bstart = offs[*start];
+                            let bend = offs[start + len];
+                            let ref_text = &self.originals[orig_msg_idx][bstart..bend];
+                            let replaced = replacer(orig_msg_idx, bstart, bend - bstart, ref_text);
+                            s.push_str(&replaced);
+                        }
                     }
                 }
+                out.push(s);
+                token_seg_idx += 1;
             }
-            out.push(s);
         }
         out
     }
@@ -238,31 +326,42 @@ impl CopyForward for Exact {
 impl CopyForward for Approximate {
     fn segments(&self) -> Vec<Vec<Segment>> {
         let token_segs = <ApproximateTokens as CopyForwardTokens>::segments(&self.inner);
-        let mut out: Vec<Vec<Segment>> = Vec::with_capacity(token_segs.len());
-        for segs in token_segs.into_iter() {
-            let mut v: Vec<Segment> = Vec::with_capacity(segs.len());
-            for seg in segs {
-                match seg {
-                    TokenSegment::Literal(toks) => {
-                        v.push(Segment::Literal(normalize::u32s_to_string(&toks)))
-                    }
-                    TokenSegment::Reference {
-                        message_idx,
-                        start,
-                        len,
-                    } => {
-                        let offs = &self.offsets[message_idx];
-                        let bstart = offs[start];
-                        let bend = offs[start + len];
-                        v.push(Segment::Reference {
-                            message_idx,
-                            start: bstart,
-                            len: bend - bstart,
-                        });
+        let mut out: Vec<Vec<Segment>> = Vec::with_capacity(self.none_mask.len());
+        let mut token_seg_idx = 0;
+        
+        for &is_none in &self.none_mask {
+            if is_none {
+                // Empty segments for None entries
+                out.push(vec![]);
+            } else {
+                let segs = &token_segs[token_seg_idx];
+                let mut v: Vec<Segment> = Vec::with_capacity(segs.len());
+                for seg in segs {
+                    match seg {
+                        TokenSegment::Literal(toks) => {
+                            v.push(Segment::Literal(normalize::u32s_to_string(toks)))
+                        }
+                        TokenSegment::Reference {
+                            message_idx: ref_idx,
+                            start,
+                            len,
+                        } => {
+                            // Map back to original indices
+                            let orig_msg_idx = self.valid_indices[*ref_idx];
+                            let offs = &self.offsets[orig_msg_idx];
+                            let bstart = offs[*start];
+                            let bend = offs[start + len];
+                            v.push(Segment::Reference {
+                                message_idx: orig_msg_idx,
+                                start: bstart,
+                                len: bend - bstart,
+                            });
+                        }
                     }
                 }
+                out.push(v);
+                token_seg_idx += 1;
             }
-            out.push(v);
         }
         out
     }
@@ -272,35 +371,48 @@ impl CopyForward for Approximate {
         F: FnMut(usize, usize, usize, &str) -> String,
     {
         let token_segs = <ApproximateTokens as CopyForwardTokens>::segments(&self.inner);
-        let mut out: Vec<String> = Vec::with_capacity(token_segs.len());
-        for segs in token_segs.into_iter() {
-            let mut s = String::new();
-            for seg in segs {
-                match seg {
-                    TokenSegment::Literal(toks) => s.push_str(&normalize::u32s_to_string(&toks)),
-                    TokenSegment::Reference {
-                        message_idx,
-                        start,
-                        len,
-                    } => {
-                        let offs = &self.offsets[message_idx];
-                        let bstart = offs[start];
-                        let bend = offs[start + len];
-                        let ref_text = &self.originals[message_idx][bstart..bend];
-                        let replaced = replacer(message_idx, bstart, bend - bstart, ref_text);
-                        s.push_str(&replaced);
+        let mut out: Vec<String> = Vec::with_capacity(self.none_mask.len());
+        let mut token_seg_idx = 0;
+        
+        for &is_none in &self.none_mask {
+            if is_none {
+                // Return original empty/none value
+                out.push(String::new());
+            } else {
+                let segs = &token_segs[token_seg_idx];
+                let mut s = String::new();
+                for seg in segs {
+                    match seg {
+                        TokenSegment::Literal(toks) => s.push_str(&normalize::u32s_to_string(toks)),
+                        TokenSegment::Reference {
+                            message_idx: ref_idx,
+                            start,
+                            len,
+                        } => {
+                            let orig_msg_idx = self.valid_indices[*ref_idx];
+                            let offs = &self.offsets[orig_msg_idx];
+                            let bstart = offs[*start];
+                            let bend = offs[start + len];
+                            let ref_text = &self.originals[orig_msg_idx][bstart..bend];
+                            let replaced = replacer(orig_msg_idx, bstart, bend - bstart, ref_text);
+                            s.push_str(&replaced);
+                        }
                     }
                 }
+                out.push(s);
+                token_seg_idx += 1;
             }
-            out.push(s);
         }
         out
     }
 }
 
 /// Create an approximate token-mode compressor over u32 token sequences.
-pub fn approximate_tokens(messages: &[&[u32]], config: Config) -> ApproximateTokens {
-    capped::CappedHashedGreedy::new_tokens(messages, config)
+/// 
+/// Supports both regular token slices and optional token slices for handling missing values.
+pub fn approximate_tokens<T: TokenLike>(messages: &[T], config: Config) -> ApproximateTokens {
+    let filtered_tokens: Vec<&[u32]> = messages.iter().filter_map(|t| t.as_tokens()).collect();
+    capped::CappedHashedGreedy::new_tokens(&filtered_tokens, config)
 }
 
 // Tests live in the `tests/` directory as integration tests.
