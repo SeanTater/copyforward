@@ -139,7 +139,7 @@ maturin develop --features python
 
 ```toml
 [dependencies]
-copyforward = "0.1"
+copyforward = "0.2"
 ```
 
 ## Advanced Usage
