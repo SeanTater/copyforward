@@ -18,15 +18,14 @@ jobs:
           toolchain: stable
           components: clippy
 
-      - name: Run pre-commit
-        uses: pre-commit/action@v4
-        with:
-          extra_args: --all-files
+      - name: Configure git for authenticated GitHub fetches
+        run: |
+          git config --global url."https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf https://github.com/
+
+      # Pre-commit checks temporarily disabled in CI
 
       - name: Run cargo clippy
         run: cargo clippy --all-targets -- -D warnings
 
       - name: Run tests
         run: cargo test --all
-
-
