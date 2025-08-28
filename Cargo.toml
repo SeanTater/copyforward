@@ -1,7 +1,10 @@
 [package]
 name = "copyforward"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
+description = "Fast copy-forward compression for threads: detect repeated substrings across messages and replace with references."
+license = "MIT"
+readme = "README.md"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
