@@ -1,5 +1,11 @@
 # copyforward
 
+[![Crates.io](https://img.shields.io/crates/v/copyforward)](https://crates.io/crates/copyforward)
+[![PyPI](https://img.shields.io/pypi/v/copyforward)](https://pypi.org/project/copyforward/)
+[![CI](https://github.com/SeanTater/copyforward/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SeanTater/copyforward/actions/workflows/ci.yml)
+[![Python CI](https://github.com/SeanTater/copyforward/actions/workflows/python-ci.yml/badge.svg?branch=main)](https://github.com/SeanTater/copyforward/actions/workflows/python-ci.yml)
+[![Crates Publish](https://github.com/SeanTater/copyforward/actions/workflows/crates-publish.yml/badge.svg?branch=main)](https://github.com/SeanTater/copyforward/actions/workflows/crates-publish.yml)
+
 Fast copy-forward compression for message threads. Detects repeated substrings across messages and replaces them with references to earlier occurrences, reducing storage requirements by 50-90%.
 
 Perfect for chat logs, document histories, dataframes with missing values, and any sequence of texts with repeated content.
@@ -253,6 +259,10 @@ Missing values add minimal overhead - compression speed remains constant regardl
 - `src/` — Rust library implementation
 - `tests/` — Integration tests  
 - `benches/` — Performance benchmarks
+
+## Changelog
+
+See CHANGELOG.md for detailed release notes.
 
 ## License
 
