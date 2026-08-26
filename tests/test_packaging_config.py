@@ -22,3 +22,10 @@ def test_wheel_matrix_covers_requested_platforms_and_python_versions():
     assert {"x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"} <= platforms
     assert "aarch64-apple-darwin" in platforms
     assert "3.14" in matrix["python-version"]
+
+
+def test_python_feature_has_no_unused_cffi_native_extension():
+    cargo_toml = (ROOT / "Cargo.toml").read_text()
+
+    assert "cffi =" not in cargo_toml
+    assert 'python = ["dep:pyo3", "dep:numpy"]' in cargo_toml

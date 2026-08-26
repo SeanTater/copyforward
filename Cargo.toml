@@ -22,7 +22,6 @@ numpy = { version = "0.27", optional = true }
 # Optional tokenizer support for Python auto-tokenization
 # Note: keep feature-gated to avoid heavy deps for Rust-only users
 tokenizers = { version = "0.15", optional = true }
-cffi = { version = "0.1.7", optional = true }
 
 [dev-dependencies]
 criterion = "0.5"
@@ -36,7 +35,7 @@ path = "benches/bench_copyforward.rs"
 default = []
 
 # Enable PyO3 + numpy bindings for Python users
-python = ["dep:pyo3", "dep:numpy", "dep:cffi"]
+python = ["dep:pyo3", "dep:numpy"]
 
 # Enable tokenizer support (HuggingFace tokenizers)
 tokenizers = ["dep:tokenizers"]
