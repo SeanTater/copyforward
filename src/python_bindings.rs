@@ -75,10 +75,10 @@ impl PyLiteralTokens {
         format!("LiteralTokens(tokens={:?})", self.tokens)
     }
 
-    fn as_numpy(&self) -> PyResult<PyObject> {
-        Python::with_gil(|py| {
+    fn as_numpy(&self) -> PyResult<Py<PyAny>> {
+        Python::attach(|py| {
             let arr = PyArray1::<u32>::from_slice(py, &self.tokens);
-            Ok(arr.into_py(py))
+            Ok(arr.unbind().into_any())
         })
     }
 }
@@ -135,7 +135,7 @@ impl PyCopyForwardText {
     #[classmethod]
     #[pyo3(signature = (messages, *, exact_mode=true, min_match_len=4, lookback=None, cap_len=64, ncap=64))]
     fn from_texts(
-        _cls: &pyo3::types::PyType,
+        _cls: &Bound<'_, pyo3::types::PyType>,
         messages: Vec<Option<String>>,
         exact_mode: bool,
         min_match_len: usize,
@@ -157,27 +157,30 @@ impl PyCopyForwardText {
         Ok(PyCopyForwardText { inner })
     }
 
-    fn segments(&self) -> PyResult<Vec<Vec<PyObject>>> {
-        Python::with_gil(|py| {
+    fn segments(&self) -> PyResult<Vec<Vec<Py<PyAny>>>> {
+        Python::attach(|py| {
             let segs = match &self.inner {
                 TextAlg::Exact(inner) => CopyForward::segments(inner),
                 TextAlg::Approx(inner) => CopyForward::segments(inner),
             };
-            Ok(segs
+            segs
                 .into_iter()
                 .map(|v| {
                     v.into_iter()
                         .map(|seg| match seg {
-                            Segment::Literal(s) => PyLiteralSegment::new(s).into_py(py),
+                            Segment::Literal(s) => Ok(Py::new(py, PyLiteralSegment::new(s))?.into_any()),
                             Segment::Reference {
                                 message_idx,
                                 start,
                                 len,
-                            } => PyReferenceSegment::new(message_idx, start, len).into_py(py),
+                            } => Ok(Py::new(
+                                py,
+                                PyReferenceSegment::new(message_idx, start, len),
+                            )?.into_any()),
                         })
-                        .collect()
+                        .collect::<PyResult<Vec<_>>>()
                 })
-                .collect())
+                .collect::<PyResult<Vec<_>>>()
         })
     }
 
@@ -225,7 +228,7 @@ impl PyCopyForwardText {
     }
 }
 
-#[pyclass(name = "CopyForwardTokens")]
+#[pyclass(name = "CopyForwardTokens", unsendable)]
 struct PyCopyForwardTokens {
     inner: TokensAlg,
     tokenizer: Option<Box<dyn crate::tokenization::Tokenize + Send>>,
@@ -236,7 +239,7 @@ impl PyCopyForwardTokens {
     #[classmethod]
     #[pyo3(signature = (messages, *, exact_mode=true, min_match_len=4, lookback=None, cap_len=64, ncap=64))]
     fn from_tokens(
-        _cls: &pyo3::types::PyType,
+        _cls: &Bound<'_, pyo3::types::PyType>,
         messages: Vec<Option<Vec<u32>>>,
         exact_mode: bool,
         min_match_len: usize,
@@ -264,8 +267,9 @@ impl PyCopyForwardTokens {
     /// Tokenizer opt-in: accept texts and a tokenizer name, return token-mode compressor.
     #[classmethod]
     #[pyo3(signature = (messages, tokenizer, *, exact_mode=true, min_match_len=4, lookback=None, cap_len=64, ncap=64))]
+    #[allow(clippy::too_many_arguments)]
     fn from_texts_with_tokenizer(
-        _cls: &pyo3::types::PyType,
+        _cls: &Bound<'_, pyo3::types::PyType>,
         messages: Vec<Option<String>>,
         tokenizer: String,
         exact_mode: bool,
@@ -293,39 +297,42 @@ impl PyCopyForwardTokens {
         })
     }
 
-    fn segments(&self) -> PyResult<Vec<Vec<PyObject>>> {
-        Python::with_gil(|py| {
+    fn segments(&self) -> PyResult<Vec<Vec<Py<PyAny>>>> {
+        Python::attach(|py| {
             let segs = match &self.inner {
                 TokensAlg::Exact(inner) => CopyForwardTokens::segments(inner),
                 TokensAlg::Approx(inner) => CopyForwardTokens::segments(inner),
             };
-            Ok(segs
+            segs
                 .into_iter()
                 .map(|v| {
                     v.into_iter()
                         .map(|seg| match seg {
-                            TokenSegment::Literal(toks) => PyLiteralTokens::new(toks).into_py(py),
+                            TokenSegment::Literal(toks) => Ok(Py::new(py, PyLiteralTokens::new(toks))?.into_any()),
                             TokenSegment::Reference {
                                 message_idx,
                                 start,
                                 len,
-                            } => PyReferenceTokens::new(message_idx, start, len).into_py(py),
+                            } => Ok(Py::new(
+                                py,
+                                PyReferenceTokens::new(message_idx, start, len),
+                            )?.into_any()),
                         })
-                        .collect()
+                        .collect::<PyResult<Vec<_>>>()
                 })
-                .collect())
+                .collect::<PyResult<Vec<_>>>()
         })
     }
 
     #[pyo3(signature = (replacement, *, as_numpy=false))]
-    fn render(&self, replacement: &PyAny, as_numpy: bool) -> PyResult<pyo3::PyObject> {
-        Python::with_gil(|py| {
+    fn render(&self, replacement: &Bound<'_, PyAny>, as_numpy: bool) -> PyResult<Py<PyAny>> {
+        Python::attach(|py| {
             let repl_vec: Vec<u32> = if let Ok(arr) = replacement.extract::<PyReadonlyArray1<u32>>()
             {
                 arr.as_slice()?.to_vec()
-            } else if let Ok(seq) = replacement.downcast::<PySequence>() {
+            } else if let Ok(seq) = replacement.cast::<PySequence>() {
                 let n = seq.len()?;
-                let mut v = Vec::with_capacity(n as usize);
+                let mut v = Vec::with_capacity(n);
                 for i in 0..n {
                     let it = seq.get_item(i)?;
                     let val: u64 = it.extract()?;
@@ -357,9 +364,9 @@ impl PyCopyForwardTokens {
                     let arr = PyArray1::<u32>::from_vec(py, v);
                     list.append(arr)?;
                 }
-                Ok(list.into_py(py))
+                Ok(list.unbind().into_any())
             } else {
-                Ok(out_vecs.to_object(py))
+                Ok(out_vecs.into_pyobject(py)?.unbind().into_any())
             }
         })
     }
@@ -386,7 +393,7 @@ impl PyCopyForwardTokens {
 }
 
 #[pymodule]
-fn copyforward(_py: Python, m: &PyModule) -> PyResult<()> {
+fn copyforward(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyCopyForwardText>()?;
     m.add_class::<PyCopyForwardTokens>()?;
     m.add_class::<PyLiteralSegment>()?;
