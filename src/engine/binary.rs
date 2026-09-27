@@ -1,6 +1,6 @@
 use crate::core::{Config, TokenSegment};
 use crate::hashing::{prefix_hashes_u32, range_hash};
-use std::collections::HashMap;
+use ahash::AHashMap as HashMap;
 
 /// Maximum candidates extended per lookup. Candidates that cannot beat the
 /// current best do not count against this cap.
@@ -29,67 +29,51 @@ pub fn compute_binary_segments(messages: &[Vec<u32>], config: &Config) -> Vec<Ve
     };
     let mut table: HashMap<u64, Vec<(usize, usize)>> =
         HashMap::with_capacity((total_kmers / 2).max(16));
-    // K-mer hashes inserted per message, so lookback eviction can remove them.
+    // K-mer hashes inserted per message, so a bounded lookback can evict
+    // them. Only populated when eviction is possible (bounded lookback).
     let mut inserted: Vec<Vec<u64>> = Vec::with_capacity(messages.len());
-    // Dedupes identical k-mer hashes, keeping the most recent owner: the
-    // shared table entry is repointed in place (at a stable slot) so it
-    // always tracks the newest occurrence, the likeliest longest match in
-    // growing threads. Only safe with unlimited lookback: under a bounded
+    // Under unlimited lookback, dedup keeps a single most-recent entry per
+    // k-mer hash in the table itself (see insert_kmers), so no auxiliary
+    // map is needed. Only safe with unlimited lookback: under a bounded
     // window an earlier owner is evicted before a newer duplicate stops
     // needing the hash, which would leave it uncovered.
-    let mut seen: HashMap<u64, (usize, usize, usize)> =
-        HashMap::with_capacity((total_kmers / 2).max(16));
     let dedupe = lookback.is_none();
 
     fn insert_kmers(
         table: &mut HashMap<u64, Vec<(usize, usize)>>,
-        seen: &mut HashMap<u64, (usize, usize, usize)>,
         messages: &[Vec<u32>],
         prefixes: &[(Vec<u64>, Vec<u64>)],
         j: usize,
         k: usize,
         dedupe: bool,
     ) -> Vec<u64> {
-        let mut hashes = Vec::new();
+        // Hashes are only tracked for bounded-lookback eviction; under
+        // unlimited lookback nothing is ever evicted.
+        let mut hashes = if dedupe {
+            Vec::new()
+        } else {
+            Vec::with_capacity(messages[j].len().saturating_sub(k))
+        };
         if messages[j].len() >= k {
             let (ref_h, ref_p) = &prefixes[j];
             for start in 0..=(messages[j].len() - k) {
                 let h = range_hash(ref_h, ref_p, start, start + k);
+                let bucket = table.entry(h).or_default();
                 if dedupe {
-                    if let Some((owner_msg, owner_start, owner_slot)) = seen.get(&h).copied() {
-                        if j == owner_msg {
-                            // Within one message the earliest start keeps
-                            // the longest potential match.
-                            continue;
-                        }
-                        // j > owner_msg: repoint the shared entry (at its
-                        // stable slot) at the newer message's occurrence, so
-                        // the front-of-bucket entry always tracks the most
-                        // recent (likeliest longest) match.
-                        let repointed = table
-                            .get_mut(&h)
-                            .and_then(|bucket| bucket.get_mut(owner_slot))
-                            .is_some_and(|e| {
-                                if e.0 != owner_msg || e.1 != owner_start {
-                                    return false;
-                                }
-                                *e = (j, start);
-                                true
-                            });
-                        if repointed {
-                            seen.insert(h, (j, start, owner_slot));
-                            continue;
-                        }
-                        // Stale slot (should not happen): fall through and
-                        // insert a fresh entry.
+                    // Invariant: under dedup a bucket holds exactly one entry,
+                    // repointed in place to the most recent occurrence (the
+                    // likeliest longest match in growing threads). Within one
+                    // message the earliest start is kept, which yields the
+                    // longest potential match.
+                    if bucket.is_empty() {
+                        bucket.push((j, start));
+                    } else if bucket[0].0 != j {
+                        bucket[0] = (j, start);
                     }
-                    // New pair: remember the slot the entry will occupy so a
-                    // later duplicate can repoint it in O(1).
-                    let slot = table.get(&h).map_or(0, |b| b.len());
-                    seen.insert(h, (j, start, slot));
+                } else {
+                    bucket.push((j, start));
+                    hashes.push(h);
                 }
-                table.entry(h).or_default().push((j, start));
-                hashes.push(h);
             }
         }
         hashes
@@ -153,7 +137,6 @@ pub fn compute_binary_segments(messages: &[Vec<u32>], config: &Config) -> Vec<Ve
         if k > 0 && i > 0 {
             inserted.push(insert_kmers(
                 &mut table,
-                &mut seen,
                 messages,
                 &prefixes,
                 i - 1,
