@@ -21,6 +21,13 @@ This project follows Keep a Changelog and Semantic Versioning.
   fewer per-token literal fragments (and faster `segments`/render).
 - Fix: capped engine no longer spends its candidate-extension budget on
   candidates that cannot beat the current best match.
+- Fix: exact engine now keeps the most recent occurrence of a deduplicated
+  k-mer (repointed in place) instead of examining every occurrence, so long
+  repeated runs in growing threads match their longest recent source in one
+  step. On a 500-message quoted thread exact's output shrinks ~10x
+  (95% -> 99.5% of the original size) and construction is ~4x faster; the
+  tradeoff is a smaller candidate pool on workloads with many competing
+  short fragments.
 - Fix: Python `CopyForwardText.segments()` now reports character offsets
   (matching Python string indexing) instead of byte offsets, which
   mis-indexed non-ASCII messages.
