@@ -5,11 +5,14 @@ repeated substrings in message threads. The guide below explains where
 code lives and how to contribute with minimal friction.
 
 ## Project Structure & Module Organization
-- `src/` — Rust library modules (core algorithms in `capped.rs`,
-  `hashed.rs`, `greedy.rs`).
+- `src/` — Rust library. Public API in `lib.rs`/`core.rs`; compression
+  engines in `engine/binary.rs` (exact) and `engine/capped.rs`
+  (approximate), wrapped by `hashed_binary.rs` and `capped.rs`.
+  Helpers in `hashing.rs` (rolling hashes), `normalize.rs` (char<->u32),
+  `tokenization.rs` (Python tokenizer opt-in), `fixture.rs` (test data).
+- `src/python_bindings.rs` — PyO3 exposure for Python users.
 - `benches/` — Criterion benchmarks.
-- `tests/` — integration/unit tests.
-- `python_bindings.rs` — PyO3 exposure for Python users.
+- `tests/` — Rust integration tests; Python tests in `tests/python_tests/`.
 
 ## Build, Test, and Development Commands
 - `cargo build` — build library.

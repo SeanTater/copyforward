@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "copyforward"
 authors = [{name = "Sean Gallagher"}]
-description = "Fast similarity search using forward-looking LSH"
+description = "Fast copy-forward compression for threads: detect repeated substrings across messages and replace with references."
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
