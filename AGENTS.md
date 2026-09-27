@@ -5,17 +5,25 @@ repeated substrings in message threads. The guide below explains where
 code lives and how to contribute with minimal friction.
 
 ## Project Structure & Module Organization
-- `src/` — Rust library modules (core algorithms in `capped.rs`,
-  `hashed.rs`, `greedy.rs`).
+- `src/` — Rust library. Public API in `lib.rs`/`core.rs`; the two engines
+  are exposed as `greedy`/`capped`, implemented in `engine/binary.rs`
+  (greedy) and `engine/capped.rs` (capped), wrapped by `hashed_binary.rs`
+  and `capped.rs`.
+  Helpers in `hashing.rs` (rolling hashes), `normalize.rs` (char<->u32),
+  `tokenization.rs` (Python tokenizer opt-in), `fixture.rs` (test data).
+- `src/python_bindings.rs` — PyO3 exposure for Python users.
 - `benches/` — Criterion benchmarks.
-- `tests/` — integration/unit tests.
-- `python_bindings.rs` — PyO3 exposure for Python users.
+- `tests/` — Rust integration tests; Python tests in `tests/python_tests/`.
 
 ## Build, Test, and Development Commands
 - `cargo build` — build library.
 - `cargo test` — run unit and integration tests.
+- `cargo bench` — run Criterion benchmarks (construct + ops groups).
 - `cargo fmt` — format Rust code.
 - `maturin develop` — build/install Python extension locally.
+- `.venv/bin/python -m pytest tests/python_tests/ -q` — run Python tests
+  (create the venv with `uv venv .venv && uv pip install -p .venv maturin
+  pytest numpy`, then `maturin develop`).
 
 ## Coding Style & Naming Conventions
 - Rust 2024 idioms; `snake_case` for functions, `CamelCase` for types.

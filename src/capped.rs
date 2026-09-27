@@ -1,9 +1,9 @@
 use crate::core::{Config, CopyForwardTokens, TokenSegment};
 use crate::engine::capped::compute_capped_segments;
 
-/// Approximate hashed greedy (token-only): caps per-candidate extension to a
+/// Capped hashed greedy (token-only): caps per-candidate extension to a
 /// fixed length and then coalesces adjacent references to consecutive source
-/// positions. Faster, approximate alternative to binary extension.
+/// positions. Faster, capped alternative to binary extension.
 #[derive(Debug, Clone)]
 pub struct CappedHashedGreedy {
     token_segs: Vec<Vec<TokenSegment>>, // segments in u32 units

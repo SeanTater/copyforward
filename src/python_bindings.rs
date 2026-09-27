@@ -1,10 +1,10 @@
 use crate::tokenization::get_tokenizer;
 use crate::{
-    Approximate, ApproximateTokens, Config, CopyForward, CopyForwardTokens, Exact, ExactTokens,
-    Segment, TokenSegment, approximate, approximate_tokens, exact, exact_tokens,
+    Capped, CappedTokens, Config, CopyForward, CopyForwardTokens, Greedy, GreedyTokens, Segment,
+    TokenSegment, capped, capped_tokens, greedy, greedy_tokens,
 };
 use numpy::{PyArray1, PyReadonlyArray1};
-use pyo3::exceptions::PyTypeError;
+use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyList, PySequence};
 
@@ -30,10 +30,14 @@ impl PyLiteralSegment {
 #[pyclass]
 #[derive(Debug, Clone)]
 struct PyReferenceSegment {
+    /// Index of the referenced message.
     #[pyo3(get)]
     message: usize,
+    /// Character offset where the referenced substring starts. Index into
+    /// the original message string (Unicode code points, like Python does).
     #[pyo3(get)]
     start: usize,
+    /// Length in characters of the referenced substring.
     #[pyo3(get)]
     len: usize,
 }
@@ -115,29 +119,30 @@ impl PyReferenceTokens {
 
 #[derive(Debug, Clone)]
 enum TextAlg {
-    Exact(Exact),
-    Approx(Approximate),
+    Greedy(Greedy),
+    Capped(Capped),
 }
 
 #[derive(Debug, Clone)]
 enum TokensAlg {
-    Exact(ExactTokens),
-    Approx(ApproximateTokens),
+    Greedy(GreedyTokens),
+    Capped(CappedTokens),
 }
 
 #[pyclass(name = "CopyForwardText")]
 struct PyCopyForwardText {
     inner: TextAlg,
+    none_mask: Vec<bool>,
 }
 
 #[pymethods]
 impl PyCopyForwardText {
     #[classmethod]
-    #[pyo3(signature = (messages, *, exact_mode=true, min_match_len=4, lookback=None, cap_len=64, ncap=64))]
+    #[pyo3(signature = (messages, *, engine="greedy", min_match_len=4, lookback=None, cap_len=64, ncap=64))]
     fn from_texts(
         _cls: &Bound<'_, pyo3::types::PyType>,
         messages: Vec<Option<String>>,
-        exact_mode: bool,
+        engine: &str,
         min_match_len: usize,
         lookback: Option<usize>,
         cap_len: usize,
@@ -149,34 +154,41 @@ impl PyCopyForwardText {
             cap_len,
             ncap,
         };
-        let inner = if exact_mode {
-            TextAlg::Exact(exact(&messages, config))
-        } else {
-            TextAlg::Approx(approximate(&messages, config))
+        let none_mask: Vec<bool> = messages.iter().map(|m| m.is_none()).collect();
+        let inner = match engine {
+            "greedy" => TextAlg::Greedy(greedy(&messages, config)),
+            "capped" => TextAlg::Capped(capped(&messages, config)),
+            other => {
+                return Err(PyValueError::new_err(format!(
+                    "engine must be \"greedy\" or \"capped\", got {other:?}"
+                )));
+            }
         };
-        Ok(PyCopyForwardText { inner })
+        Ok(PyCopyForwardText { inner, none_mask })
     }
 
     fn segments(&self) -> PyResult<Vec<Vec<Py<PyAny>>>> {
         Python::attach(|py| {
+            // Character offsets so references index Python strings directly.
             let segs = match &self.inner {
-                TextAlg::Exact(inner) => CopyForward::segments(inner),
-                TextAlg::Approx(inner) => CopyForward::segments(inner),
+                TextAlg::Greedy(inner) => inner.segments_chars(),
+                TextAlg::Capped(inner) => inner.segments_chars(),
             };
-            segs
-                .into_iter()
+            segs.into_iter()
                 .map(|v| {
                     v.into_iter()
                         .map(|seg| match seg {
-                            Segment::Literal(s) => Ok(Py::new(py, PyLiteralSegment::new(s))?.into_any()),
+                            Segment::Literal(s) => {
+                                Ok(Py::new(py, PyLiteralSegment::new(s))?.into_any())
+                            }
                             Segment::Reference {
                                 message_idx,
                                 start,
                                 len,
-                            } => Ok(Py::new(
-                                py,
-                                PyReferenceSegment::new(message_idx, start, len),
-                            )?.into_any()),
+                            } => Ok(
+                                Py::new(py, PyReferenceSegment::new(message_idx, start, len))?
+                                    .into_any(),
+                            ),
                         })
                         .collect::<PyResult<Vec<_>>>()
                 })
@@ -186,23 +198,28 @@ impl PyCopyForwardText {
 
     fn render(&self, replacement: &str) -> Vec<Option<String>> {
         let result = match &self.inner {
-            TextAlg::Exact(inner) => CopyForward::render_with_static(inner, replacement),
-            TextAlg::Approx(inner) => CopyForward::render_with_static(inner, replacement),
+            TextAlg::Greedy(inner) => CopyForward::render_with_static(inner, replacement),
+            TextAlg::Capped(inner) => CopyForward::render_with_static(inner, replacement),
         };
-        // Convert empty strings (from None entries) back to None for Python
-        result.into_iter().map(|s| if s.is_empty() { None } else { Some(s) }).collect()
+        // Only entries that were None at construction become None;
+        // genuine empty strings must survive rendering.
+        result
+            .into_iter()
+            .zip(self.none_mask.iter().copied())
+            .map(|(s, is_none)| if is_none { None } else { Some(s) })
+            .collect()
     }
 
     fn compression_ratio(&self) -> f64 {
         let segs = match &self.inner {
-            TextAlg::Exact(inner) => CopyForward::segments(inner),
-            TextAlg::Approx(inner) => CopyForward::segments(inner),
+            TextAlg::Greedy(inner) => CopyForward::segments(inner),
+            TextAlg::Capped(inner) => CopyForward::segments(inner),
         };
         let original: usize = match &self.inner {
-            TextAlg::Exact(inner) => {
+            TextAlg::Greedy(inner) => {
                 CopyForward::render_with(inner, |_, _, _, text| text.to_string())
             }
-            TextAlg::Approx(inner) => {
+            TextAlg::Capped(inner) => {
                 CopyForward::render_with(inner, |_, _, _, text| text.to_string())
             }
         }
@@ -237,11 +254,11 @@ struct PyCopyForwardTokens {
 #[pymethods]
 impl PyCopyForwardTokens {
     #[classmethod]
-    #[pyo3(signature = (messages, *, exact_mode=true, min_match_len=4, lookback=None, cap_len=64, ncap=64))]
+    #[pyo3(signature = (messages, *, engine="greedy", min_match_len=4, lookback=None, cap_len=64, ncap=64))]
     fn from_tokens(
         _cls: &Bound<'_, pyo3::types::PyType>,
         messages: Vec<Option<Vec<u32>>>,
-        exact_mode: bool,
+        engine: &str,
         min_match_len: usize,
         lookback: Option<usize>,
         cap_len: usize,
@@ -253,10 +270,14 @@ impl PyCopyForwardTokens {
             cap_len,
             ncap,
         };
-        let inner = if exact_mode {
-            TokensAlg::Exact(exact_tokens(&messages, config))
-        } else {
-            TokensAlg::Approx(approximate_tokens(&messages, config))
+        let inner = match engine {
+            "greedy" => TokensAlg::Greedy(greedy_tokens(&messages, config)),
+            "capped" => TokensAlg::Capped(capped_tokens(&messages, config)),
+            other => {
+                return Err(PyValueError::new_err(format!(
+                    "engine must be \"greedy\" or \"capped\", got {other:?}"
+                )));
+            }
         };
         Ok(PyCopyForwardTokens {
             inner,
@@ -266,13 +287,13 @@ impl PyCopyForwardTokens {
 
     /// Tokenizer opt-in: accept texts and a tokenizer name, return token-mode compressor.
     #[classmethod]
-    #[pyo3(signature = (messages, tokenizer, *, exact_mode=true, min_match_len=4, lookback=None, cap_len=64, ncap=64))]
+    #[pyo3(signature = (messages, tokenizer, *, engine="greedy", min_match_len=4, lookback=None, cap_len=64, ncap=64))]
     #[allow(clippy::too_many_arguments)]
     fn from_texts_with_tokenizer(
         _cls: &Bound<'_, pyo3::types::PyType>,
         messages: Vec<Option<String>>,
         tokenizer: String,
-        exact_mode: bool,
+        engine: &str,
         min_match_len: usize,
         lookback: Option<usize>,
         cap_len: usize,
@@ -285,11 +306,18 @@ impl PyCopyForwardTokens {
             ncap,
         };
         let mut tok = get_tokenizer(&tokenizer).map_err(PyTypeError::new_err)?;
-        let toks: Vec<Option<Vec<u32>>> = messages.into_iter().map(|opt_s| opt_s.map(|s| tok.encode(&s))).collect();
-        let inner = if exact_mode {
-            TokensAlg::Exact(exact_tokens(&toks, config))
-        } else {
-            TokensAlg::Approx(approximate_tokens(&toks, config))
+        let toks: Vec<Option<Vec<u32>>> = messages
+            .into_iter()
+            .map(|opt_s| opt_s.map(|s| tok.encode(&s)))
+            .collect();
+        let inner = match engine {
+            "greedy" => TokensAlg::Greedy(greedy_tokens(&toks, config)),
+            "capped" => TokensAlg::Capped(capped_tokens(&toks, config)),
+            other => {
+                return Err(PyValueError::new_err(format!(
+                    "engine must be \"greedy\" or \"capped\", got {other:?}"
+                )));
+            }
         };
         Ok(PyCopyForwardTokens {
             inner,
@@ -300,23 +328,24 @@ impl PyCopyForwardTokens {
     fn segments(&self) -> PyResult<Vec<Vec<Py<PyAny>>>> {
         Python::attach(|py| {
             let segs = match &self.inner {
-                TokensAlg::Exact(inner) => CopyForwardTokens::segments(inner),
-                TokensAlg::Approx(inner) => CopyForwardTokens::segments(inner),
+                TokensAlg::Greedy(inner) => CopyForwardTokens::segments(inner),
+                TokensAlg::Capped(inner) => CopyForwardTokens::segments(inner),
             };
-            segs
-                .into_iter()
+            segs.into_iter()
                 .map(|v| {
                     v.into_iter()
                         .map(|seg| match seg {
-                            TokenSegment::Literal(toks) => Ok(Py::new(py, PyLiteralTokens::new(toks))?.into_any()),
+                            TokenSegment::Literal(toks) => {
+                                Ok(Py::new(py, PyLiteralTokens::new(toks))?.into_any())
+                            }
                             TokenSegment::Reference {
                                 message_idx,
                                 start,
                                 len,
-                            } => Ok(Py::new(
-                                py,
-                                PyReferenceTokens::new(message_idx, start, len),
-                            )?.into_any()),
+                            } => Ok(
+                                Py::new(py, PyReferenceTokens::new(message_idx, start, len))?
+                                    .into_any(),
+                            ),
                         })
                         .collect::<PyResult<Vec<_>>>()
                 })
@@ -337,9 +366,7 @@ impl PyCopyForwardTokens {
                     let it = seq.get_item(i)?;
                     let val: u64 = it.extract()?;
                     if val > u32::MAX as u64 {
-                        return Err(PyTypeError::new_err(
-                            "replacement token exceeds u32 range",
-                        ));
+                        return Err(PyTypeError::new_err("replacement token exceeds u32 range"));
                     }
                     v.push(val as u32);
                 }
@@ -349,12 +376,12 @@ impl PyCopyForwardTokens {
                     "replacement must be a sequence of ints or np.uint32 array",
                 ));
             };
-            
+
             let out_vecs: Vec<Vec<u32>> = match &self.inner {
-                TokensAlg::Exact(inner) => {
+                TokensAlg::Greedy(inner) => {
                     CopyForwardTokens::render_with(inner, |_, _, _, _| repl_vec.clone())
                 }
-                TokensAlg::Approx(inner) => {
+                TokensAlg::Capped(inner) => {
                     CopyForwardTokens::render_with(inner, |_, _, _, _| repl_vec.clone())
                 }
             };
@@ -381,10 +408,10 @@ impl PyCopyForwardTokens {
         })?;
         let repl_tokens = tok.encode(replacement);
         let tokens: Vec<Vec<u32>> = match &self.inner {
-            TokensAlg::Exact(inner) => {
+            TokensAlg::Greedy(inner) => {
                 CopyForwardTokens::render_with(inner, |_, _, _, _| repl_tokens.clone())
             }
-            TokensAlg::Approx(inner) => {
+            TokensAlg::Capped(inner) => {
                 CopyForwardTokens::render_with(inner, |_, _, _, _| repl_tokens.clone())
             }
         };

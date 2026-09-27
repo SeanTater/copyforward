@@ -4,17 +4,19 @@
 //! secure but collision rates are extremely low in practice for text compression.
 
 /// Compute rolling prefix hashes and powers for a byte string.
-/// Returns (h, p) where h[r] - h[l]*p[r-l] yields the rolling hash for s[l..r).
+/// Returns `(h, p)` where `h[r] - h[l]*p[r-l]` yields the rolling hash for `s[l..r)`.
 pub fn prefix_hashes(s: &[u8], base: u64) -> (Vec<u64>, Vec<u64>) {
     let mut h = Vec::with_capacity(s.len() + 1);
     let mut p = Vec::with_capacity(s.len() + 1);
     h.push(0);
     p.push(1);
+    let mut lh = 0u64;
+    let mut lp = 1u64;
     for &b in s {
-        let last_h: u64 = *h.last().unwrap();
-        h.push(last_h.wrapping_mul(base).wrapping_add(b as u64));
-        let last_p: u64 = *p.last().unwrap();
-        p.push(last_p.wrapping_mul(base));
+        lh = lh.wrapping_mul(base).wrapping_add(b as u64);
+        h.push(lh);
+        lp = lp.wrapping_mul(base);
+        p.push(lp);
     }
     (h, p)
 }
@@ -31,11 +33,13 @@ pub fn prefix_hashes_u32(s: &[u32], base: u64) -> (Vec<u64>, Vec<u64>) {
     let mut p = Vec::with_capacity(s.len() + 1);
     h.push(0);
     p.push(1);
+    let mut lh = 0u64;
+    let mut lp = 1u64;
     for &t in s {
-        let last_h: u64 = *h.last().unwrap();
-        h.push(last_h.wrapping_mul(base).wrapping_add(t as u64));
-        let last_p: u64 = *p.last().unwrap();
-        p.push(last_p.wrapping_mul(base));
+        lh = lh.wrapping_mul(base).wrapping_add(t as u64);
+        h.push(lh);
+        lp = lp.wrapping_mul(base);
+        p.push(lp);
     }
     (h, p)
 }

@@ -1,11 +1,11 @@
 use copyforward::fixture::generate_thread;
-use copyforward::{Config, CopyForward, Segment, approximate, exact};
+use copyforward::{Config, CopyForward, Segment, capped, greedy};
 
 #[test]
 fn render_with_lambda_replaces_references() {
     let msgs = &["hello world", "hello world today"];
     let config = Config::default();
-    let cf = exact(msgs, config);
+    let cf = greedy(msgs, config);
 
     let rendered = cf.render_with(|m_idx, start, len, referenced_text| {
         format!("<ref {m_idx}:{start}+{len}='{referenced_text}'>")
@@ -56,8 +56,8 @@ fn fixture_thread_is_deduped_substantially() {
 
     let refs: Vec<&str> = msgs.iter().map(|s| s.as_str()).collect();
     let config = Config::default();
-    run_fixture_thread_is_deduped_substantially(exact(&refs, config.clone()), msgs.clone());
-    run_fixture_thread_is_deduped_substantially(approximate(&refs, config), msgs);
+    run_fixture_thread_is_deduped_substantially(greedy(&refs, config.clone()), msgs.clone());
+    run_fixture_thread_is_deduped_substantially(capped(&refs, config), msgs);
 }
 
 fn run_partial_overlaps_across_multiple_messages<C>(cf: C)
@@ -85,8 +85,8 @@ fn partial_overlaps_across_multiple_messages() {
         "hello world peace and joy for everyone",
     ];
     let config = Config::default();
-    run_partial_overlaps_across_multiple_messages(exact(msgs, config.clone()));
-    run_partial_overlaps_across_multiple_messages(approximate(msgs, config));
+    run_partial_overlaps_across_multiple_messages(greedy(msgs, config.clone()));
+    run_partial_overlaps_across_multiple_messages(capped(msgs, config));
 }
 
 #[test]
@@ -97,7 +97,7 @@ fn finds_longest_common_substrings() {
         "The quick brown fox is amazing and the lazy dog sleeps",
     ];
     let config = Config::default();
-    let cf = exact(msgs, config);
+    let cf = greedy(msgs, config);
 
     // Verify segments were created and can be rendered
     let segs = cf.segments();
@@ -139,8 +139,8 @@ fn handles_overlapping_substrings_efficiently() {
         "programming and programming languages are great for programming",
     ];
     let config = Config::default();
-    run_handles_overlapping_substrings_efficiently(exact(msgs, config.clone()));
-    run_handles_overlapping_substrings_efficiently(approximate(msgs, config));
+    run_handles_overlapping_substrings_efficiently(greedy(msgs, config.clone()));
+    run_handles_overlapping_substrings_efficiently(capped(msgs, config));
 }
 
 #[test]
@@ -148,21 +148,21 @@ fn test_basic_compression() {
     let msgs = &["Hello world", "Hello world today"];
     let config = Config::default();
 
-    // Test exact
-    let exact_cf = exact(msgs, config.clone());
-    let exact_segs = exact_cf.segments();
-    assert_eq!(exact_segs[0].len(), 1); // First message should be one literal
-    assert!(exact_segs[1].len() >= 2); // Second message should have reference + literal
+    // Test greedy
+    let greedy_cf = greedy(msgs, config.clone());
+    let greedy_segs = greedy_cf.segments();
+    assert_eq!(greedy_segs[0].len(), 1); // First message should be one literal
+    assert!(greedy_segs[1].len() >= 2); // Second message should have reference + literal
 
-    // Test approximate
-    let approx_cf = approximate(msgs, config);
+    // Test capped
+    let approx_cf = capped(msgs, config);
     let approx_segs = approx_cf.segments();
     assert_eq!(approx_segs[0].len(), 1); // First message should be one literal
     assert!(approx_segs[1].len() >= 2); // Second message should have reference + literal
 
     // Both should render back to original
-    let exact_rendered = exact_cf.render_with(|_, _, _, text| text.to_string());
+    let greedy_rendered = greedy_cf.render_with(|_, _, _, text| text.to_string());
     let approx_rendered = approx_cf.render_with(|_, _, _, text| text.to_string());
-    assert_eq!(exact_rendered, msgs);
+    assert_eq!(greedy_rendered, msgs);
     assert_eq!(approx_rendered, msgs);
 }
