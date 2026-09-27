@@ -69,12 +69,16 @@ pub enum TokenSegment {
 pub trait CopyForward {
     /// Get the compressed segment representation.
     ///
-    /// Returns a vector where each element corresponds to one input message,
-    /// containing the segments that make up that compressed message.
+    /// Reference offsets are byte positions within the original messages.
     ///
     /// # Returns
     /// Vector of segment vectors, one per input message.
     fn segments(&self) -> Vec<Vec<Segment>>;
+
+    /// Like [`segments`](Self::segments), but reference offsets are Unicode
+    /// scalar (character) positions, so they can index the original
+    /// messages by code point (as Python strings do).
+    fn segments_chars(&self) -> Vec<Vec<Segment>>;
 
     /// Render messages by calling a replacer function for each reference.
     ///

@@ -77,7 +77,7 @@ Choose between two optimized algorithms:
 | **Exact** | < 1MB total text, perfect compression needed | Slower | Perfect |
 | **Approximate** | > 1MB text, speed matters | ~2x faster | Excellent |
 
-The approximate algorithm may split some long references but still achieves excellent compression ratios.
+The approximate algorithm matches long runs against their most recent (longest) source, so it produces the same long references as exact on typical threads while skipping the exhaustive candidate search. It trades a small amount of compression ratio for speed.
 
 ## Missing Value Support
 
@@ -248,9 +248,10 @@ Typical compression ratios:
 - **Document versions**: 50-80% space savings
 - **Dataframes with missing values**: 50-85% space savings (None values don't affect compression)
 
-Speed comparison on 1MB of message data:
-- **Exact**: ~50ms, perfect compression
-- **Approximate**: ~25ms, 95% of perfect compression
+Speed comparison on ~1MB of message data (see `benches/` for the full
+workload suite):
+- **Exact**: perfect compression, ~2x slower
+- **Approximate**: ~2x faster, near-perfect compression
 
 Missing values add minimal overhead - compression speed remains constant regardless of None density.
 

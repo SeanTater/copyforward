@@ -15,17 +15,29 @@ This project follows Keep a Changelog and Semantic Versioning.
 - Fix: exact engine no longer spends its 64-candidate extension budget on
   candidates that cannot beat the current best match, so long matches
   hidden behind many shorter candidates are found.
+- Fix: capped (approximate) engine now keeps the most recent occurrence of
+  a deduplicated k-mer instead of the oldest, so long repeated runs match
+  against the longest recent source and produce longer references with far
+  fewer per-token literal fragments (and faster `segments`/render).
+- Fix: capped engine no longer spends its candidate-extension budget on
+  candidates that cannot beat the current best match.
 - Fix: Python `CopyForwardText.segments()` now reports character offsets
   (matching Python string indexing) instead of byte offsets, which
   mis-indexed non-ASCII messages.
 - Fix: Python `CopyForwardText.render()` no longer turns genuine
   empty-string messages into `None`; only entries that were `None` at
   construction render as `None`.
-- Add `Exact::segments_chars()` / `Approximate::segments_chars()` for
-  character-offset segment representations.
+- Add `segments_chars()` to the `CopyForward` trait for character-offset
+  (Unicode scalar) segment representations, alongside the byte-offset
+  `segments()`.
 - Add regression and round-trip test coverage (Rust and Python) for the
   above, plus unicode, empty-input, min-match-length, and randomized
   token-thread cases.
+- Add a structured Criterion benchmark suite (`construct_text`,
+  `construct_tokens`, and `ops_threaded` groups) covering workload shapes
+  for long matches, large candidate buckets, intra-message collisions, and
+  the literal-scan path, with per-case throughput and dynamic sample
+  tuning.
 
 ## [0.2.1] - 2025-08-28
 - Add crates.io publish workflow triggered by `v*` tags.

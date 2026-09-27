@@ -271,38 +271,6 @@ pub fn approximate<M: MessageLike>(messages: &[M], config: Config) -> Approximat
     }
 }
 
-impl Exact {
-    /// Like [`CopyForward::segments`], but reference `start`/`len` are
-    /// Unicode scalar (character) offsets instead of byte offsets, so they
-    /// can index the original strings directly (as in Python).
-    pub fn segments_chars(&self) -> Vec<Vec<Segment>> {
-        let token_segs = <ExactTokens as CopyForwardTokens>::segments(&self.inner);
-        map_text_segments(
-            &token_segs,
-            &self.valid_indices,
-            &self.offsets,
-            &self.none_mask,
-            false,
-        )
-    }
-}
-
-impl Approximate {
-    /// Like [`CopyForward::segments`], but reference `start`/`len` are
-    /// Unicode scalar (character) offsets instead of byte offsets, so they
-    /// can index the original strings directly (as in Python).
-    pub fn segments_chars(&self) -> Vec<Vec<Segment>> {
-        let token_segs = <ApproximateTokens as CopyForwardTokens>::segments(&self.inner);
-        map_text_segments(
-            &token_segs,
-            &self.valid_indices,
-            &self.offsets,
-            &self.none_mask,
-            false,
-        )
-    }
-}
-
 /// Map token segments back to text segments. With `byte_offsets`, reference
 /// start/len are byte ranges; otherwise they are Unicode scalar (character)
 /// ranges, matching how Python strings index.
@@ -373,6 +341,17 @@ impl CopyForward for Exact {
         )
     }
 
+    fn segments_chars(&self) -> Vec<Vec<Segment>> {
+        let token_segs = <ExactTokens as CopyForwardTokens>::segments(&self.inner);
+        map_text_segments(
+            &token_segs,
+            &self.valid_indices,
+            &self.offsets,
+            &self.none_mask,
+            false,
+        )
+    }
+
     fn render_with<F>(&self, mut replacer: F) -> Vec<String>
     where
         F: FnMut(usize, usize, usize, &str) -> String,
@@ -423,6 +402,17 @@ impl CopyForward for Approximate {
             &self.offsets,
             &self.none_mask,
             true,
+        )
+    }
+
+    fn segments_chars(&self) -> Vec<Vec<Segment>> {
+        let token_segs = <ApproximateTokens as CopyForwardTokens>::segments(&self.inner);
+        map_text_segments(
+            &token_segs,
+            &self.valid_indices,
+            &self.offsets,
+            &self.none_mask,
+            false,
         )
     }
 

@@ -17,8 +17,12 @@ code lives and how to contribute with minimal friction.
 ## Build, Test, and Development Commands
 - `cargo build` — build library.
 - `cargo test` — run unit and integration tests.
+- `cargo bench` — run Criterion benchmarks (construct + ops groups).
 - `cargo fmt` — format Rust code.
 - `maturin develop` — build/install Python extension locally.
+- `.venv/bin/python -m pytest tests/python_tests/ -q` — run Python tests
+  (create the venv with `uv venv .venv && uv pip install -p .venv maturin
+  pytest numpy`, then `maturin develop`).
 
 ## Coding Style & Naming Conventions
 - Rust 2024 idioms; `snake_case` for functions, `CamelCase` for types.
