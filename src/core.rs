@@ -54,10 +54,10 @@ pub enum TokenSegment {
 ///
 /// # Example
 /// ```
-/// use copyforward::{CopyForward, exact, Config};
+/// use copyforward::{CopyForward, greedy, Config};
 ///
 /// let messages = &["Hello world", "Hello world, how are you?"];
-/// let compressed = exact(messages, Config::default());
+/// let compressed = greedy(messages, Config::default());
 ///
 /// // Get the compressed representation
 /// let segments = compressed.segments();
@@ -101,10 +101,10 @@ pub trait CopyForward {
     ///
     /// # Example
     /// ```
-    /// use copyforward::{exact, Config, CopyForward};
+    /// use copyforward::{greedy, Config, CopyForward};
     ///
     /// let messages = &["Hello world", "Hello world today"];
-    /// let compressed = exact(messages, Config::default());
+    /// let compressed = greedy(messages, Config::default());
     /// let redacted = compressed.render_with_static("[REFERENCE]");
     /// ```
     fn render_with_static(&self, replacement: &str) -> Vec<String> {
@@ -135,7 +135,7 @@ pub trait CopyForwardTokens {
 ///
 /// # Example
 /// ```
-/// use copyforward::{Config, exact};
+/// use copyforward::{Config, greedy};
 ///
 /// let config = Config {
 ///     min_match_len: 8,  // Only create references for 8+ byte matches
@@ -143,7 +143,7 @@ pub trait CopyForwardTokens {
 ///     ..Config::default()
 /// };
 ///
-/// let compressed = exact(&["test"], config);
+/// let compressed = greedy(&["test"], config);
 /// ```
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -164,18 +164,18 @@ pub struct Config {
     /// **Default:** None (unlimited)
     pub lookback: Option<usize>,
 
-    /// Maximum extension length for approximate algorithms (internal tuning).
+    /// Maximum extension length for capped algorithms (internal tuning).
     ///
-    /// Controls speed vs accuracy tradeoff in [`crate::approximate()`]. Ignored by [`crate::exact()`].
+    /// Controls speed vs accuracy tradeoff in [`crate::capped()`]. Ignored by [`crate::greedy()`].
     /// For token mode this is measured in tokens; for text mode, in Unicode
     /// scalar values (characters).
     ///
     /// **Default:** 64
     pub cap_len: usize,
 
-    /// Maximum candidates examined per lookup in approximate algorithms (internal tuning).
+    /// Maximum candidates examined per lookup in capped algorithms (internal tuning).
     ///
-    /// Limits worst-case performance when many matches exist. Ignored by [`crate::exact()`].
+    /// Limits worst-case performance when many matches exist. Ignored by [`crate::greedy()`].
     ///
     /// **Default:** 64 candidates
     pub ncap: usize,

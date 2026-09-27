@@ -20,7 +20,7 @@ import copyforward
 # Basic usage with text messages
 messages = ["Hello world", "Hello world, how are you?", "Hello world today"]
 
-# Text API (exact by default)
+# Text API (greedy engine by default)
 cf = copyforward.CopyForwardText.from_texts(messages)
 print(f"Compression ratio: {cf.compression_ratio():.2f}")
 # Render with replacement text to visualize references
@@ -31,19 +31,19 @@ messages_with_none = ["Hello world", None, "Hello world again"]
 cf_none = copyforward.CopyForwardText.from_texts(messages_with_none)
 result = cf_none.render("[REF]")  # ['Hello world', None, '[REF] again']
 
-# Approximate (faster) text compression
-cf_fast = copyforward.CopyForwardText.from_texts(messages, exact_mode=False)
-approx_result = cf_fast.render("[REF]")  # May find different compression patterns
+# Capped engine: fastest on incompressible / highly repetitive data
+cf_fast = copyforward.CopyForwardText.from_texts(messages, engine="capped")
+capped_result = cf_fast.render("[REF]")  # May find different compression patterns
 
 # Token API with missing values
 toks = [[10, 11, 12], None, [10, 11, 12, 13]]
-cf_tok = copyforward.CopyForwardTokens.from_tokens(toks, exact_mode=True)
+cf_tok = copyforward.CopyForwardTokens.from_tokens(toks, engine="greedy")
 # Render with replacement tokens - only non-None entries returned
 rendered_toks = cf_tok.render([999])  # [[10, 11, 12], [999, 13]]
 
 # Tokenizer opt-in: build token-mode directly from texts and keep tokenizer for decoding
 repeated_messages = ["Hello world from Alice", "Hello world from Alice again", "Alice says hi"]
-cf_tok2 = copyforward.CopyForwardTokens.from_texts_with_tokenizer(repeated_messages, tokenizer="whitespace", exact_mode=True)
+cf_tok2 = copyforward.CopyForwardTokens.from_texts_with_tokenizer(repeated_messages, tokenizer="whitespace", engine="greedy")
 token_ids = cf_tok2.render([9999])         # List[List[int]] with replacement tokens
 decoded = cf_tok2.render_texts("[REF]")    # Decoded text with replacements
 ```
@@ -51,37 +51,39 @@ decoded = cf_tok2.render_texts("[REF]")    # Decoded text with replacements
 ### Rust
 
 ```rust
-use copyforward::{exact, approximate, Config};
+use copyforward::{greedy, capped, Config};
 
-// Basic usage
+// Basic usage (greedy engine)
 let messages = &["Hello world", "Hello world, how are you?"];
-let compressed = exact(messages, Config::default());
+let compressed = greedy(messages, Config::default());
 
 // Handle missing values (Option types work seamlessly!)
 let messages_with_none = &[Some("Hello world"), None, Some("Hello world again")];
-let compressed = exact(messages_with_none, Config::default());
+let compressed = greedy(messages_with_none, Config::default());
 
-// Approximate compression - fastest on nested/growing threads
-let compressed = approximate(messages, Config::default());
+// Capped engine - fastest on incompressible / highly repetitive data
+let compressed = capped(messages, Config::default());
 
 // Render back to original
 let original = compressed.render_with(|_, _, _, text| text.to_string());
 ```
 
-## Algorithm Selection
+## Engine Selection
 
-Two algorithms are available; which one is faster and smaller depends on the data:
+Both engines do the same greedy exact-match compression; they differ in how
+much candidate search they spend per position. Which is faster and smaller
+depends on the data:
 
-| Algorithm | Best for | Why |
-|-----------|----------|-----|
-| **Exact** | Data with many competing repeated fragments (phrase pools, mixed content) | Examines up to 64 candidate matches per position and keeps the longest |
-| **Approximate** | Nested/growing message threads; incompressible data | Capped extension plus most-recent matching; smallest output and fastest on threads |
+| Engine | Best for | Why |
+|--------|----------|-----|
+| **`greedy`** (default) | Nested/growing threads; data with many competing repeated fragments | Keeps the most recent occurrence of each k-mer and extends it fully via binary search |
+| **`capped`** | Incompressible and highly repetitive data | Keeps more candidate variants (per 64-token context) but extends each only to a cap before fully extending the best |
 
 Measured on the benchmark workloads (see the Performance section): on
-nested threads both engines save 95-99.75%, with approximate producing the
-smaller output faster; on phrase-pool data exact saves ~90% versus ~76% for
-approximate and is also faster; on non-repetitive text neither saves
-anything.
+nested threads both save 99.5-99.75% and `greedy` is faster; on phrase-pool
+data `greedy` saves ~87% versus ~76% for `capped` and is also faster; on
+highly repetitive and incompressible data `capped` is faster; on
+non-repetitive text neither saves anything.
 
 ## Missing Value Support
 
@@ -113,7 +115,7 @@ cf_tok = copyforward.CopyForwardTokens.from_tokens(tokens)
 ### Rust
 
 ```rust
-use copyforward::{exact, exact_tokens, Config};
+use copyforward::{greedy, greedy_tokens, Config};
 
 // Mixed Option types work seamlessly
 let messages = &[
@@ -121,7 +123,7 @@ let messages = &[
     None,
     Some("User logged in successfully")
 ];
-let compressed = exact(messages, Config::default());
+let compressed = greedy(messages, Config::default());
 
 // Token sequences with None values
 let tokens = &[
@@ -129,7 +131,7 @@ let tokens = &[
     None,
     Some(vec![1u32, 2u32, 3u32, 4u32])
 ];
-let compressed = exact_tokens(tokens, Config::default());
+let compressed = greedy_tokens(tokens, Config::default());
 ```
 
 ## Installation
@@ -149,7 +151,7 @@ maturin develop --features python
 
 ```toml
 [dependencies]
-copyforward = "0.2"
+copyforward = "0.3"
 ```
 
 ## Advanced Usage
@@ -162,9 +164,9 @@ import copyforward
 # Custom configuration (text)
 cf = copyforward.CopyForwardText.from_texts(
     messages,
-    exact_mode=True,      # Perfect compression
-    min_match_len=8,      # Only create refs for 8+ char matches
-    lookback=100          # Only search previous 100 messages
+    engine="greedy",      # or "capped"
+    min_match_len=8,       # Only create refs for 8+ char matches
+    lookback=100           # Only search previous 100 messages
 )
 
 # Get detailed segment information
@@ -183,7 +185,7 @@ redacted = cf.render("[REFERENCE]")  # Shows where references occur
 cf_tok = copyforward.CopyForwardTokens.from_texts_with_tokenizer(
     messages,
     tokenizer="whitespace",   # or feature-gated 'hf:<model>' / 'file:<path>'
-    exact_mode=True,
+    engine="greedy",          # or "capped"
 )
 token_ids = cf_tok.render([9999])  # Replace references with token 9999
 texts = cf_tok.render_texts("[REF]")  # Decoded text with "[REF]" replacements
@@ -206,7 +208,7 @@ This prints the docstring and usage information emitted by the PyO3 bindings.
 ### Rust
 
 ```rust
-use copyforward::{exact, Config, CopyForward};
+use copyforward::{greedy, Config, CopyForward};
 
 // Custom configuration
 let config = Config {
@@ -215,7 +217,7 @@ let config = Config {
     ..Config::default()
 };
 
-let compressed = exact(&messages, config);
+let compressed = greedy(&messages, config);
 
 // Get compression details
 let segments = compressed.segments();
@@ -248,17 +250,17 @@ This represents the second message as a reference to the entire first message pl
 
 Compression savings by workload shape (measured; 1.0 = no savings):
 
-| Workload | Exact | Approximate |
-|----------|-------|-------------|
-| Nested thread (each message quotes the previous) | 95-98% savings | 99-99.75% savings |
+| Workload | `greedy` | `capped` |
+|----------|----------|----------|
+| Nested thread (each message quotes the previous) | 99.5% savings | 99.75% savings |
 | Repeated messages | 99.3-99.8% savings | 99.3-99.8% savings |
-| Phrase pool (many competing fragments) | ~90% savings | ~75% savings |
+| Phrase pool (many competing fragments) | ~87% savings | ~76% savings |
 | Non-repetitive text | none | none |
 
-Construction speed on ~0.5-3 MB of text depends on the shape: approximate
-is ~2x faster on nested and repeated workloads, but ~1.3x slower than exact
-on phrase-pool data, where exact's longer matches pay for the extra
-candidate work. Run `cargo bench` for the full per-workload suite.
+Construction speed on ~0.5-3 MB of text depends on the shape: `greedy` is
+faster on nested and phrase-pool workloads (its longer matches pay for the
+candidate work), while `capped` is faster on highly repetitive and
+incompressible data. Run `cargo bench` for the full per-workload suite.
 
 Missing values add minimal overhead - compression speed remains constant regardless of None density.
 

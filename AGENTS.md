@@ -5,9 +5,10 @@ repeated substrings in message threads. The guide below explains where
 code lives and how to contribute with minimal friction.
 
 ## Project Structure & Module Organization
-- `src/` — Rust library. Public API in `lib.rs`/`core.rs`; compression
-  engines in `engine/binary.rs` (exact) and `engine/capped.rs`
-  (approximate), wrapped by `hashed_binary.rs` and `capped.rs`.
+- `src/` — Rust library. Public API in `lib.rs`/`core.rs`; the two engines
+  are exposed as `greedy`/`capped`, implemented in `engine/binary.rs`
+  (greedy) and `engine/capped.rs` (capped), wrapped by `hashed_binary.rs`
+  and `capped.rs`.
   Helpers in `hashing.rs` (rolling hashes), `normalize.rs` (char<->u32),
   `tokenization.rs` (Python tokenizer opt-in), `fixture.rs` (test data).
 - `src/python_bindings.rs` — PyO3 exposure for Python users.

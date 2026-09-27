@@ -1,7 +1,7 @@
 //! Benchmarks for copyforward.
 //!
 //! Groups:
-//! - `construct_text`: building compressors (`exact` / `approximate`) across
+//! - `construct_text`: building compressors (`greedy` / `capped`) across
 //!   workload shapes that stress different code paths.
 //! - `construct_tokens`: the token-mode constructors on the same shapes.
 //! - `ops_threaded`: post-construction operations (`segments`,
@@ -21,8 +21,8 @@
 use std::time::{Duration, Instant};
 
 use copyforward::{
-    Config, CopyForward, CopyForwardTokens, approximate, approximate_tokens, exact, exact_tokens,
-    fixture::generate_thread,
+    Config, CopyForward, CopyForwardTokens, capped, capped_tokens, fixture::generate_thread,
+    greedy, greedy_tokens,
 };
 use criterion::{
     BenchmarkGroup, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main,
@@ -122,17 +122,17 @@ fn bench_construct_text(c: &mut Criterion) {
         let config = Config::default();
 
         // Correctness and quality checks run once, outside the timing loop.
-        let cf = exact(&refs, config.clone());
+        let cf = greedy(&refs, config.clone());
         assert_eq!(
             cf.render_with(|_, _, _, t| t.to_string()),
             *msgs,
-            "exact round-trip failed for {name}"
+            "greedy round-trip failed for {name}"
         );
-        let cf = approximate(&refs, config.clone());
+        let cf = capped(&refs, config.clone());
         assert_eq!(
             cf.render_with(|_, _, _, t| t.to_string()),
             *msgs,
-            "approximate round-trip failed for {name}"
+            "capped round-trip failed for {name}"
         );
         if *expect_ratio {
             let deduped = compressed_size(&cf.segments());
@@ -147,14 +147,12 @@ fn bench_construct_text(c: &mut Criterion) {
         tune_group(
             &mut group,
             vec![
-                time_once(|| exact(&refs, config.clone())),
-                time_once(|| approximate(&refs, config.clone())),
+                time_once(|| greedy(&refs, config.clone())),
+                time_once(|| capped(&refs, config.clone())),
             ],
         );
-        group.bench_function("exact", |b| b.iter(|| exact(&refs, config.clone())));
-        group.bench_function("approximate", |b| {
-            b.iter(|| approximate(&refs, config.clone()))
-        });
+        group.bench_function("greedy", |b| b.iter(|| greedy(&refs, config.clone())));
+        group.bench_function("capped", |b| b.iter(|| capped(&refs, config.clone())));
         group.finish();
     }
 }
@@ -182,17 +180,17 @@ fn bench_construct_tokens(c: &mut Criterion) {
         let config = Config::default();
 
         // Round-trip checks once, outside the timing loop.
-        let cf = exact_tokens(&refs, config.clone());
+        let cf = greedy_tokens(&refs, config.clone());
         assert_eq!(
             cf.render_with(|_, _, _, s| s.to_vec()),
             *toks,
-            "exact token round-trip {name}"
+            "greedy token round-trip {name}"
         );
-        let cf = approximate_tokens(&refs, config.clone());
+        let cf = capped_tokens(&refs, config.clone());
         assert_eq!(
             cf.render_with(|_, _, _, s| s.to_vec()),
             *toks,
-            "approximate token round-trip {name}"
+            "capped token round-trip {name}"
         );
 
         let mut group = c.benchmark_group(format!("construct_tokens_{name}"));
@@ -200,13 +198,15 @@ fn bench_construct_tokens(c: &mut Criterion) {
         tune_group(
             &mut group,
             vec![
-                time_once(|| exact_tokens(&refs, config.clone())),
-                time_once(|| approximate_tokens(&refs, config.clone())),
+                time_once(|| greedy_tokens(&refs, config.clone())),
+                time_once(|| capped_tokens(&refs, config.clone())),
             ],
         );
-        group.bench_function("exact", |b| b.iter(|| exact_tokens(&refs, config.clone())));
-        group.bench_function("approximate", |b| {
-            b.iter(|| approximate_tokens(&refs, config.clone()))
+        group.bench_function("greedy", |b| {
+            b.iter(|| greedy_tokens(&refs, config.clone()))
+        });
+        group.bench_function("capped", |b| {
+            b.iter(|| capped_tokens(&refs, config.clone()))
         });
         group.finish();
     }
@@ -243,15 +243,15 @@ fn bench_ops(c: &mut Criterion) {
     let msgs = generate_thread(42, 500, 100);
     let refs: Vec<&str> = msgs.iter().map(String::as_str).collect();
     let config = Config::default();
-    let exact_cf = exact(&refs, config.clone());
-    let approx_cf = approximate(&refs, config);
+    let greedy_cf = greedy(&refs, config.clone());
+    let capped_cf = capped(&refs, config);
 
     let mut group = c.benchmark_group("ops_threaded");
     // The slowest op (ratio_composition) is ~10x the fastest; 60 samples
     // keeps every op inside the default measurement budget.
     group.sample_size(60);
-    bench_ops_for(&mut group, "exact", &exact_cf);
-    bench_ops_for(&mut group, "approximate", &approx_cf);
+    bench_ops_for(&mut group, "greedy", &greedy_cf);
+    bench_ops_for(&mut group, "capped", &capped_cf);
     group.finish();
 }
 

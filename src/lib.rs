@@ -13,10 +13,10 @@
 //! ## Rust
 //!
 //! ```
-//! use copyforward::{exact, Config, CopyForward};
+//! use copyforward::{greedy, Config, CopyForward};
 //!
 //! let messages = &["Hello world", "Hello world, how are you?"];
-//! let compressed = exact(messages, Config::default());
+//! let compressed = greedy(messages, Config::default());
 //!
 //! // Render back to original text
 //! let original = compressed.render_with(|_, _, _, text| text.to_string());
@@ -29,24 +29,24 @@
 //! import copyforward
 //!
 //! messages = ["Hello world", "Hello world, how are you?"]
-//! # Exact mode (default) - perfect compression
-//! cf = copyforward.CopyForward.from_texts(messages)
+//! cf = copyforward.CopyForwardText.from_texts(messages)  # engine="greedy" (default)
 //! print(cf.compression_ratio())
 //! ```
 //!
-//! # Algorithm Selection
+//! # Engine Selection
 //!
-//! Choose between two optimized algorithms:
+//! Both engines perform the same greedy exact-match compression; they differ
+//! in how much candidate search they spend per position.
 //!
-//! - **[`exact()`]**: Best-effort compression using binary search extension (O(n log m) time)
-//!   - Best for: <1MB total text, when the best compression is needed
-//!   - Finds the longest match among indexed candidates; a bounded
-//!     per-lookup candidate cap keeps worst-case cost down
+//! - **[`greedy()`]**: keeps the most recent occurrence of each k-mer and
+//!   extends the match fully via binary search. Best on nested/growing
+//!   threads and on data with many competing repeated fragments.
+//! - **[`capped()`]**: keeps more candidate variants (one per 64-token
+//!   context) but extends each only to a cap before fully extending the
+//!   best. Fastest on incompressible and highly repetitive data.
 //!
-//! - **[`approximate()`]**: Fast compression with capped extension (~2x faster)  
-//!   - Best for: >1MB text, when speed matters more than perfect compression
-//!   - May split long references into multiple shorter ones
-//!   - Still achieves excellent compression ratios (typically 50-90% size reduction)
+//! Both produce identical round-trips. Pick by data shape; see the
+//! benchmark suite in `benches/` for measured tradeoffs.
 
 #![allow(unsafe_op_in_unsafe_fn)]
 
@@ -122,36 +122,33 @@ impl TokenLike for Option<Vec<u32>> {
     }
 }
 
-/// Exact copy-forward compression for token sequences (u32 IDs).
-pub type ExactTokens = hashed_binary::HashedGreedyBinary;
+/// Greedy copy-forward compression for token sequences (u32 IDs).
+pub type GreedyTokens = hashed_binary::HashedGreedyBinary;
 
-/// Approximate copy-forward compression with capped extension.
+/// Capped copy-forward compression for token sequences (u32 IDs).
 ///
-/// Uses rolling hash indexing but caps extension at 64 bytes per candidate, then
-/// coalesces adjacent references. Trades perfect accuracy for ~2x speed improvement.
+/// Keeps more candidate variants (one per 64-token context) but extends each
+/// only to a cap before fully extending the best, then coalesces adjacent
+/// references. Fastest on incompressible and highly repetitive data.
 ///
-/// **Time complexity:** O(n) average case  
+/// **Time complexity:** O(n) average case
 /// **Space complexity:** O(n) for hash table and deduplication
-///
-/// Best for large message sets (>1MB) where speed matters more than perfect compression.
-/// Still achieves excellent ratios, just may split some long matches into multiple references.
-/// Approximate copy-forward compression for token sequences (u32 IDs).
-pub type ApproximateTokens = capped::CappedHashedGreedy;
+pub type CappedTokens = capped::CappedHashedGreedy;
 
-/// Text-mode wrapper for exact algorithm routing through the token core.
+/// Text-mode wrapper for greedy algorithm routing through the token core.
 #[derive(Debug, Clone)]
-pub struct Exact {
-    inner: ExactTokens,
+pub struct Greedy {
+    inner: GreedyTokens,
     originals: Vec<String>,
     offsets: Vec<Vec<usize>>,  // byte offsets per Unicode-scalar boundary
     valid_indices: Vec<usize>, // indices of non-None messages
     none_mask: Vec<bool>,      // true for None entries
 }
 
-/// Text-mode wrapper for approximate algorithm routing through the token core.
+/// Text-mode wrapper for capped algorithm routing through the token core.
 #[derive(Debug, Clone)]
-pub struct Approximate {
-    inner: ApproximateTokens,
+pub struct Capped {
+    inner: CappedTokens,
     originals: Vec<String>,
     offsets: Vec<Vec<usize>>,  // byte offsets per Unicode-scalar boundary
     valid_indices: Vec<usize>, // indices of non-None messages
@@ -172,25 +169,25 @@ fn compute_offsets(s: &str) -> Vec<usize> {
     offs
 }
 
-/// Create an exact copy-forward compressor.
+/// Create a greedy copy-forward compressor.
 ///
-/// Uses binary search extension to find the longest substring match among
-/// indexed candidates. Higher compression than [`approximate()`] but slower
-/// for large texts.
+/// Keeps the most recent occurrence of each k-mer and extends the match fully
+/// via binary search. Best on nested/growing threads and on data with many
+/// competing repeated fragments.
 ///
 /// Supports both regular string slices and optional strings for handling missing values:
 /// ```
-/// use copyforward::{exact, Config, CopyForward};
+/// use copyforward::{greedy, Config, CopyForward};
 ///
 /// // Regular usage
 /// let messages = &["Hello world", "Hello world today"];
-/// let compressed = exact(messages, Config::default());
+/// let compressed = greedy(messages, Config::default());
 ///
 /// // With None values (for dataframes)
 /// let messages_with_none = &[Some("Hello"), None, Some("World")];
-/// let compressed = exact(messages_with_none, Config::default());
+/// let compressed = greedy(messages_with_none, Config::default());
 /// ```
-pub fn exact<M: MessageLike>(messages: &[M], config: Config) -> Exact {
+pub fn greedy<M: MessageLike>(messages: &[M], config: Config) -> Greedy {
     let opts: Vec<Option<&str>> = messages.iter().map(|m| m.as_message()).collect();
     let originals: Vec<String> = opts
         .iter()
@@ -209,7 +206,7 @@ pub fn exact<M: MessageLike>(messages: &[M], config: Config) -> Exact {
     let filtered_toks: Vec<Vec<u32>> = valid_indices.iter().map(|&i| toks[i].clone()).collect();
     let refs: Vec<&[u32]> = filtered_toks.iter().map(|v| v.as_slice()).collect();
     let inner = hashed_binary::HashedGreedyBinary::new_tokens(&refs, config);
-    Exact {
+    Greedy {
         inner,
         originals,
         offsets,
@@ -218,32 +215,33 @@ pub fn exact<M: MessageLike>(messages: &[M], config: Config) -> Exact {
     }
 }
 
-/// Create an exact token-mode compressor over u32 token sequences.
+/// Create a greedy token-mode compressor over u32 token sequences.
 ///
 /// Supports both regular token slices and optional token slices for handling missing values.
-pub fn exact_tokens<T: TokenLike>(messages: &[T], config: Config) -> ExactTokens {
+pub fn greedy_tokens<T: TokenLike>(messages: &[T], config: Config) -> GreedyTokens {
     let filtered_tokens: Vec<&[u32]> = messages.iter().filter_map(|t| t.as_tokens()).collect();
     hashed_binary::HashedGreedyBinary::new_tokens(&filtered_tokens, config)
 }
 
-/// Create an approximate copy-forward compressor.
+/// Create a capped copy-forward compressor.
 ///
-/// Caps extension at 64 bytes for ~2x speed improvement over [`exact()`]. May split
-/// some long matches but still achieves excellent compression ratios.
+/// Keeps more candidate variants (one per 64-token context) but extends each
+/// only to a cap before fully extending the best. Fastest on incompressible
+/// and highly repetitive data.
 ///
 /// Supports both regular string slices and optional strings for handling missing values:
 /// ```
-/// use copyforward::{approximate, Config, CopyForward};
+/// use copyforward::{capped, Config, CopyForward};
 ///
 /// // Regular usage
 /// let messages = &["Hello world", "Hello world today"];  
-/// let compressed = approximate(messages, Config::default());
+/// let compressed = capped(messages, Config::default());
 ///
 /// // With None values (for dataframes)
 /// let messages_with_none = &[Some("Hello"), None, Some("World")];
-/// let compressed = approximate(messages_with_none, Config::default());
+/// let compressed = capped(messages_with_none, Config::default());
 /// ```
-pub fn approximate<M: MessageLike>(messages: &[M], config: Config) -> Approximate {
+pub fn capped<M: MessageLike>(messages: &[M], config: Config) -> Capped {
     let opts: Vec<Option<&str>> = messages.iter().map(|m| m.as_message()).collect();
     let originals: Vec<String> = opts
         .iter()
@@ -262,7 +260,7 @@ pub fn approximate<M: MessageLike>(messages: &[M], config: Config) -> Approximat
     let filtered_toks: Vec<Vec<u32>> = valid_indices.iter().map(|&i| toks[i].clone()).collect();
     let refs: Vec<&[u32]> = filtered_toks.iter().map(|v| v.as_slice()).collect();
     let inner = capped::CappedHashedGreedy::new_tokens(&refs, config);
-    Approximate {
+    Capped {
         inner,
         originals,
         offsets,
@@ -329,9 +327,9 @@ fn map_text_segments(
     out
 }
 
-impl CopyForward for Exact {
+impl CopyForward for Greedy {
     fn segments(&self) -> Vec<Vec<Segment>> {
-        let token_segs = <ExactTokens as CopyForwardTokens>::segments(&self.inner);
+        let token_segs = <GreedyTokens as CopyForwardTokens>::segments(&self.inner);
         map_text_segments(
             &token_segs,
             &self.valid_indices,
@@ -342,7 +340,7 @@ impl CopyForward for Exact {
     }
 
     fn segments_chars(&self) -> Vec<Vec<Segment>> {
-        let token_segs = <ExactTokens as CopyForwardTokens>::segments(&self.inner);
+        let token_segs = <GreedyTokens as CopyForwardTokens>::segments(&self.inner);
         map_text_segments(
             &token_segs,
             &self.valid_indices,
@@ -356,7 +354,7 @@ impl CopyForward for Exact {
     where
         F: FnMut(usize, usize, usize, &str) -> String,
     {
-        let token_segs = <ExactTokens as CopyForwardTokens>::segments(&self.inner);
+        let token_segs = <GreedyTokens as CopyForwardTokens>::segments(&self.inner);
         let mut out: Vec<String> = Vec::with_capacity(self.none_mask.len());
         let mut token_seg_idx = 0;
 
@@ -393,9 +391,9 @@ impl CopyForward for Exact {
     }
 }
 
-impl CopyForward for Approximate {
+impl CopyForward for Capped {
     fn segments(&self) -> Vec<Vec<Segment>> {
-        let token_segs = <ApproximateTokens as CopyForwardTokens>::segments(&self.inner);
+        let token_segs = <CappedTokens as CopyForwardTokens>::segments(&self.inner);
         map_text_segments(
             &token_segs,
             &self.valid_indices,
@@ -406,7 +404,7 @@ impl CopyForward for Approximate {
     }
 
     fn segments_chars(&self) -> Vec<Vec<Segment>> {
-        let token_segs = <ApproximateTokens as CopyForwardTokens>::segments(&self.inner);
+        let token_segs = <CappedTokens as CopyForwardTokens>::segments(&self.inner);
         map_text_segments(
             &token_segs,
             &self.valid_indices,
@@ -420,7 +418,7 @@ impl CopyForward for Approximate {
     where
         F: FnMut(usize, usize, usize, &str) -> String,
     {
-        let token_segs = <ApproximateTokens as CopyForwardTokens>::segments(&self.inner);
+        let token_segs = <CappedTokens as CopyForwardTokens>::segments(&self.inner);
         let mut out: Vec<String> = Vec::with_capacity(self.none_mask.len());
         let mut token_seg_idx = 0;
 
@@ -457,10 +455,10 @@ impl CopyForward for Approximate {
     }
 }
 
-/// Create an approximate token-mode compressor over u32 token sequences.
+/// Create a capped token-mode compressor over u32 token sequences.
 ///
 /// Supports both regular token slices and optional token slices for handling missing values.
-pub fn approximate_tokens<T: TokenLike>(messages: &[T], config: Config) -> ApproximateTokens {
+pub fn capped_tokens<T: TokenLike>(messages: &[T], config: Config) -> CappedTokens {
     let filtered_tokens: Vec<&[u32]> = messages.iter().filter_map(|t| t.as_tokens()).collect();
     capped::CappedHashedGreedy::new_tokens(&filtered_tokens, config)
 }

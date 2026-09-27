@@ -5,8 +5,8 @@
 //! points at the text it claims.
 
 use copyforward::{
-    Config, CopyForward, CopyForwardTokens, Segment, approximate, approximate_tokens, exact,
-    exact_tokens, fixture::generate_thread,
+    Config, CopyForward, CopyForwardTokens, Segment, capped, capped_tokens,
+    fixture::generate_thread, greedy, greedy_tokens,
 };
 
 fn assert_text_round_trip<C: CopyForward>(cf: &C, msgs: &[&str]) {
@@ -35,11 +35,11 @@ fn assert_reference_invariants<C: CopyForward>(cf: &C, msgs: &[String]) {
 #[test]
 fn test_empty_input() {
     let cfg = Config::default();
-    let cf = exact(&[] as &[&str], cfg.clone());
+    let cf = greedy(&[] as &[&str], cfg.clone());
     assert_eq!(cf.segments().len(), 0);
     assert_eq!(cf.render_with_static(""), Vec::<String>::new());
 
-    let cf = approximate(&[] as &[&str], cfg);
+    let cf = capped(&[] as &[&str], cfg);
     assert_eq!(cf.segments().len(), 0);
 }
 
@@ -47,11 +47,11 @@ fn test_empty_input() {
 fn test_empty_string_message() {
     let msgs = &["", "hello world", "hello world"];
     let cfg = Config::default();
-    let cf = exact(msgs, cfg.clone());
+    let cf = greedy(msgs, cfg.clone());
     assert_text_round_trip(&cf, msgs);
     assert!(cf.segments()[0].is_empty());
 
-    let cf = approximate(msgs, cfg);
+    let cf = capped(msgs, cfg);
     assert_text_round_trip(&cf, msgs);
     assert!(cf.segments()[0].is_empty());
 }
@@ -60,9 +60,9 @@ fn test_empty_string_message() {
 fn test_single_message() {
     let msgs = &["just one message"];
     let cfg = Config::default();
-    let cf = exact(msgs, cfg.clone());
+    let cf = greedy(msgs, cfg.clone());
     assert_text_round_trip(&cf, msgs);
-    let cf = approximate(msgs, cfg);
+    let cf = capped(msgs, cfg);
     assert_text_round_trip(&cf, msgs);
 }
 
@@ -74,9 +74,9 @@ fn test_unicode_round_trip() {
         "café héllo wörld 🌍 again",
     ];
     let cfg = Config::default();
-    let cf = exact(msgs, cfg.clone());
+    let cf = greedy(msgs, cfg.clone());
     assert_text_round_trip(&cf, msgs);
-    let cf = approximate(msgs, cfg);
+    let cf = capped(msgs, cfg);
     assert_text_round_trip(&cf, msgs);
 }
 
@@ -87,9 +87,9 @@ fn test_min_match_len_one() {
         min_match_len: 1,
         ..Config::default()
     };
-    let cf = exact(msgs, cfg.clone());
+    let cf = greedy(msgs, cfg.clone());
     assert_text_round_trip(&cf, msgs);
-    let cf = approximate(msgs, cfg);
+    let cf = capped(msgs, cfg);
     assert_text_round_trip(&cf, msgs);
 }
 
@@ -108,9 +108,9 @@ fn test_min_match_len_larger_than_messages() {
             }
         }
     }
-    let cf = exact(msgs, cfg.clone());
+    let cf = greedy(msgs, cfg.clone());
     assert_all_literals(&cf);
-    let cf = approximate(msgs, cfg);
+    let cf = capped(msgs, cfg);
     assert_all_literals(&cf);
 }
 
@@ -136,9 +136,9 @@ fn test_long_repeated_run_single_reference() {
             other => panic!("{name}: expected a reference, got {other:?}"),
         }
     }
-    let cf = exact(&refs, Config::default());
-    assert_full_run_reference(&cf, "exact");
-    let cf = approximate(&refs, Config::default());
+    let cf = greedy(&refs, Config::default());
+    assert_full_run_reference(&cf, "greedy");
+    let cf = capped(&refs, Config::default());
     assert_full_run_reference(&cf, "approx");
 }
 
@@ -149,11 +149,11 @@ fn test_reference_invariants_on_fixture_threads() {
         let owned: Vec<String> = msgs.clone();
         let refs: Vec<&str> = owned.iter().map(|s| s.as_str()).collect();
 
-        let cf = exact(&refs, Config::default());
+        let cf = greedy(&refs, Config::default());
         assert_reference_invariants(&cf, &owned);
         assert_text_round_trip(&cf, &refs);
 
-        let cf = approximate(&refs, Config::default());
+        let cf = capped(&refs, Config::default());
         assert_reference_invariants(&cf, &owned);
         assert_text_round_trip(&cf, &refs);
     }
@@ -163,11 +163,11 @@ fn test_reference_invariants_on_fixture_threads() {
 fn test_token_zero_values_round_trip() {
     let msgs: Vec<Vec<u32>> = vec![vec![0, 0, 0, 0, 1], vec![0, 0, 0, 0, 2]];
     let refs: Vec<&[u32]> = msgs.iter().map(|v| v.as_slice()).collect();
-    for name in ["exact", "approx"] {
-        let rendered = if name == "exact" {
-            exact_tokens(&refs, Config::default()).render_with(|_, _, _, s| s.to_vec())
+    for name in ["greedy", "approx"] {
+        let rendered = if name == "greedy" {
+            greedy_tokens(&refs, Config::default()).render_with(|_, _, _, s| s.to_vec())
         } else {
-            approximate_tokens(&refs, Config::default()).render_with(|_, _, _, s| s.to_vec())
+            capped_tokens(&refs, Config::default()).render_with(|_, _, _, s| s.to_vec())
         };
         assert_eq!(rendered, msgs, "{name} must round-trip zero-valued tokens");
     }
@@ -189,14 +189,14 @@ fn test_random_token_threads_round_trip() {
             .collect();
         let refs: Vec<&[u32]> = msgs.iter().map(|v| v.as_slice()).collect();
 
-        let exact = exact_tokens(&refs, Config::default());
+        let greedy = greedy_tokens(&refs, Config::default());
         assert_eq!(
-            exact.render_with(|_, _, _, s| s.to_vec()),
+            greedy.render_with(|_, _, _, s| s.to_vec()),
             msgs,
-            "exact token round-trip failed for seed {seed}"
+            "greedy token round-trip failed for seed {seed}"
         );
 
-        let approx = approximate_tokens(&refs, Config::default());
+        let approx = capped_tokens(&refs, Config::default());
         assert_eq!(
             approx.render_with(|_, _, _, s| s.to_vec()),
             msgs,
@@ -275,15 +275,15 @@ fn test_segments_chars_uses_character_offsets() {
         assert_ne!(char_ref, byte_ref, "test needs multi-byte content");
     }
 
-    let cf = exact(&msgs, Config::default());
+    let cf = greedy(&msgs, Config::default());
     check(
         &msgs,
         m1,
         &cf.segments()[1],
         &cf.segments_chars()[1],
-        "exact",
+        "greedy",
     );
-    let cf = approximate(&msgs, Config::default());
+    let cf = capped(&msgs, Config::default());
     check(
         &msgs,
         m1,
@@ -293,7 +293,7 @@ fn test_segments_chars_uses_character_offsets() {
     );
 }
 
-/// The exact engine caps expensive candidate extensions at 64 per lookup.
+/// The greedy engine caps expensive candidate extensions at 64 per lookup.
 /// Candidates that cannot beat the current best must not count against that
 /// cap, or long matches hidden past 64 weaker candidates are missed.
 #[test]
@@ -305,13 +305,13 @@ fn test_exact_finds_match_beyond_sixty_four_candidates() {
     msgs.push(format!("{}z", "x".repeat(50)));
     let refs: Vec<&str> = msgs.iter().map(|s| s.as_str()).collect();
 
-    let cf = exact(&refs, Config::default());
+    let cf = greedy(&refs, Config::default());
     let segs = cf.segments();
     assert!(
         segs[11]
             .iter()
             .any(|seg| { matches!(seg, Segment::Reference { len, .. } if *len >= 50) }),
-        "exact should find the 50-char match, got {:?}",
+        "greedy should find the 50-char match, got {:?}",
         segs[11]
     );
 }

@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 This project follows Keep a Changelog and Semantic Versioning.
 
 ## [Unreleased]
+- Breaking: rename the two engines from `exact`/`approximate` to
+  `greedy`/`capped`. Both are greedy exact-match heuristics (neither is
+  optimal), so the old names implied a guarantee that did not exist.
+  Rust: `exact`/`approximate` -> `greedy`/`capped`; `exact_tokens` /
+  `approximate_tokens` -> `greedy_tokens` / `capped_tokens`; types
+  `Exact`/`Approximate` -> `Greedy`/`Capped`, `ExactTokens` /
+  `ApproximateTokens` -> `GreedyTokens` / `CappedTokens`.
+- Breaking: the Python `exact_mode: bool` parameter is replaced by
+  `engine: str` accepting `"greedy"` (default) or `"capped"`.
+- Breaking: version bumped to 0.3.0.
 - Fix: verify rolling-hash matches against actual token content in both
   engines; crafted 64-bit hash collisions previously corrupted output.
 - Fix: implement `Config::lookback`; it was accepted but ignored, so
@@ -12,19 +22,19 @@ This project follows Keep a Changelog and Semantic Versioning.
   genuine matches that end at the current message's boundary (degrading
   them to per-token literals); windows are now compared over their common
   length.
-- Fix: exact engine no longer spends its 64-candidate extension budget on
+- Fix: greedy engine no longer spends its 64-candidate extension budget on
   candidates that cannot beat the current best match, so long matches
   hidden behind many shorter candidates are found.
-- Fix: capped (approximate) engine now keeps the most recent occurrence of
+- Fix: capped engine now keeps the most recent occurrence of
   a deduplicated k-mer instead of the oldest, so long repeated runs match
   against the longest recent source and produce longer references with far
   fewer per-token literal fragments (and faster `segments`/render).
 - Fix: capped engine no longer spends its candidate-extension budget on
   candidates that cannot beat the current best match.
-- Fix: exact engine now keeps the most recent occurrence of a deduplicated
+- Fix: greedy engine now keeps the most recent occurrence of a deduplicated
   k-mer (repointed in place) instead of examining every occurrence, so long
   repeated runs in growing threads match their longest recent source in one
-  step. On a 500-message quoted thread exact's output shrinks ~10x
+  step. On a 500-message quoted thread greedy's output shrinks ~10x
   (95% -> 99.5% of the original size) and construction is ~4x faster; the
   tradeoff is a smaller candidate pool on workloads with many competing
   short fragments.

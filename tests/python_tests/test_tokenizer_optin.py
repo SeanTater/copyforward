@@ -11,7 +11,7 @@ def test_whitespace_tokenizer_roundtrip_texts_and_tokens():
     ]
 
     # Build via tokenizer opt-in (tokens API)
-    cf = copyforward.CopyForwardTokens.from_texts_with_tokenizer(messages, tokenizer="whitespace", exact_mode=True)
+    cf = copyforward.CopyForwardTokens.from_texts_with_tokenizer(messages, tokenizer="whitespace", engine="greedy")
 
     # render() returns token ids; render_texts() decodes to original messages
     tokens = cf.render([9999])  # Use token 9999 as replacement
@@ -21,7 +21,7 @@ def test_whitespace_tokenizer_roundtrip_texts_and_tokens():
 
     # Building from the rendered token ids should work but will have different structure
     # because the tokens already have replacements applied
-    cf2 = copyforward.CopyForwardTokens.from_tokens(tokens, exact_mode=True)
+    cf2 = copyforward.CopyForwardTokens.from_tokens(tokens, engine="greedy")
     assert cf2.render([9999]) == tokens
     # cf2's segments will differ from cf's because cf2 was built from pre-replaced tokens
     segs2 = cf2.segments()

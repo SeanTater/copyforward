@@ -6,7 +6,7 @@ def test_text_with_none_values():
     import copyforward
     
     messages = ["hello world", None, "hello world today"]
-    cf = copyforward.CopyForwardText.from_texts(messages, exact_mode=True)
+    cf = copyforward.CopyForwardText.from_texts(messages, engine="greedy")
     
     segments = cf.segments()
     assert len(segments) == 3
@@ -24,11 +24,11 @@ def test_text_with_none_values():
     assert rendered[2] == "[REF] today"
 
 def test_text_approximate_with_none():
-    """Test approximate mode with None values."""
+    """Test the capped engine with None values."""
     import copyforward
     
     messages = ["hello", None, "world", None, "hello world"]
-    cf = copyforward.CopyForwardText.from_texts(messages, exact_mode=False)
+    cf = copyforward.CopyForwardText.from_texts(messages, engine="capped")
     
     segments = cf.segments()
     assert len(segments) == 5
@@ -49,7 +49,7 @@ def test_tokens_with_none_values():
     import copyforward
     
     messages = [[10, 11, 12], None, [10, 11, 12, 13]]
-    cf = copyforward.CopyForwardTokens.from_tokens(messages, exact_mode=True)
+    cf = copyforward.CopyForwardTokens.from_tokens(messages, engine="greedy")
     
     segments = cf.segments()
     # Should have segments only for non-None entries
@@ -66,14 +66,14 @@ def test_mixed_none_all_none():
     
     # All None
     messages = [None, None, None]
-    cf = copyforward.CopyForwardText.from_texts(messages, exact_mode=True)
+    cf = copyforward.CopyForwardText.from_texts(messages, engine="greedy")
     rendered = cf.render("[REF]")
     assert len(rendered) == 3
     assert all(r is None for r in rendered)
     
     # Mostly None
     messages = [None, "hello", None]
-    cf = copyforward.CopyForwardText.from_texts(messages, exact_mode=True)
+    cf = copyforward.CopyForwardText.from_texts(messages, engine="greedy")
     rendered = cf.render("[REF]")
     assert len(rendered) == 3
     assert rendered[0] is None
@@ -85,7 +85,7 @@ def test_compression_ratio_with_none():
     import copyforward
     
     messages = ["hello world", None, "hello world again"]
-    cf = copyforward.CopyForwardText.from_texts(messages, exact_mode=True)
+    cf = copyforward.CopyForwardText.from_texts(messages, engine="greedy")
     
     ratio = cf.compression_ratio()
     assert isinstance(ratio, float)

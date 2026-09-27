@@ -4,7 +4,7 @@
 //! secure but collision rates are extremely low in practice for text compression.
 
 /// Compute rolling prefix hashes and powers for a byte string.
-/// Returns (h, p) where h[r] - h[l]*p[r-l] yields the rolling hash for s[l..r).
+/// Returns `(h, p)` where `h[r] - h[l]*p[r-l]` yields the rolling hash for `s[l..r)`.
 pub fn prefix_hashes(s: &[u8], base: u64) -> (Vec<u64>, Vec<u64>) {
     let mut h = Vec::with_capacity(s.len() + 1);
     let mut p = Vec::with_capacity(s.len() + 1);

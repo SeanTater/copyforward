@@ -7,8 +7,8 @@
 //! collision silently substitutes the wrong text.
 
 use copyforward::{
-    Config, CopyForward, CopyForwardTokens, TokenSegment, approximate, approximate_tokens, exact,
-    exact_tokens,
+    Config, CopyForward, CopyForwardTokens, TokenSegment, capped, capped_tokens, greedy,
+    greedy_tokens,
 };
 
 fn min2() -> Config {
@@ -23,21 +23,18 @@ fn min2() -> Config {
 fn test_token_kmer_collision_round_trip_exact() {
     let msgs: Vec<Vec<u32>> = vec![vec![1000, 5000], vec![1016, 888]];
     let refs: Vec<&[u32]> = msgs.iter().map(|v| v.as_slice()).collect();
-    let cf = exact_tokens(&refs, min2());
+    let cf = greedy_tokens(&refs, min2());
     let rendered = cf.render_with(|_, _, _, slice| slice.to_vec());
-    assert_eq!(rendered, msgs, "collision must not corrupt exact output");
+    assert_eq!(rendered, msgs, "collision must not corrupt greedy output");
 }
 
 #[test]
 fn test_token_kmer_collision_round_trip_approx() {
     let msgs: Vec<Vec<u32>> = vec![vec![1000, 5000], vec![1016, 888]];
     let refs: Vec<&[u32]> = msgs.iter().map(|v| v.as_slice()).collect();
-    let cf = approximate_tokens(&refs, min2());
+    let cf = capped_tokens(&refs, min2());
     let rendered = cf.render_with(|_, _, _, slice| slice.to_vec());
-    assert_eq!(
-        rendered, msgs,
-        "collision must not corrupt approximate output"
-    );
+    assert_eq!(rendered, msgs, "collision must not corrupt capped output");
 }
 
 /// A colliding k-mer with no real overlap must yield no reference at all.
@@ -46,15 +43,15 @@ fn test_token_collision_without_overlap_yields_literal() {
     let msgs: Vec<Vec<u32>> = vec![vec![1000, 5000, 7, 7, 7], vec![1016, 888, 7, 7, 7]];
     let refs: Vec<&[u32]> = msgs.iter().map(|v| v.as_slice()).collect();
 
-    let exact = exact_tokens(&refs, min2());
-    assert_eq!(exact.render_with(|_, _, _, s| s.to_vec()), msgs);
+    let greedy = greedy_tokens(&refs, min2());
+    assert_eq!(greedy.render_with(|_, _, _, s| s.to_vec()), msgs);
     // The first two tokens of message 1 share no real content with message 0.
-    match &exact.segments()[1][0] {
+    match &greedy.segments()[1][0] {
         TokenSegment::Literal(toks) => assert_eq!(toks, &[1016, 888]),
         other => panic!("expected literal prefix, got {other:?}"),
     }
 
-    let approx = approximate_tokens(&refs, min2());
+    let approx = capped_tokens(&refs, min2());
     assert_eq!(approx.render_with(|_, _, _, s| s.to_vec()), msgs);
 }
 
@@ -68,11 +65,11 @@ fn test_token_kmer_collision_length_three() {
         min_match_len: 3,
         ..Config::default()
     };
-    for name in ["exact", "approx"] {
-        let rendered = if name == "exact" {
-            exact_tokens(&refs, cfg.clone()).render_with(|_, _, _, s| s.to_vec())
+    for name in ["greedy", "approx"] {
+        let rendered = if name == "greedy" {
+            greedy_tokens(&refs, cfg.clone()).render_with(|_, _, _, s| s.to_vec())
         } else {
-            approximate_tokens(&refs, cfg.clone()).render_with(|_, _, _, s| s.to_vec())
+            capped_tokens(&refs, cfg.clone()).render_with(|_, _, _, s| s.to_vec())
         };
         assert_eq!(rendered, msgs, "{name} must survive the length-3 collision");
     }
@@ -86,9 +83,9 @@ fn test_text_kmer_collision_round_trip() {
     let msgs = vec![m0.to_string(), m1.to_string()];
     let refs: Vec<&str> = msgs.iter().map(|s| s.as_str()).collect();
 
-    let exact = exact(&refs, min2());
-    assert_eq!(exact.render_with(|_, _, _, t| t.to_string()), msgs);
+    let greedy = greedy(&refs, min2());
+    assert_eq!(greedy.render_with(|_, _, _, t| t.to_string()), msgs);
 
-    let approx = approximate(&refs, min2());
+    let approx = capped(&refs, min2());
     assert_eq!(approx.render_with(|_, _, _, t| t.to_string()), msgs);
 }

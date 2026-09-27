@@ -1,7 +1,7 @@
 //! Tests for the `Config::lookback` window: references may only point at
 //! the most recent `lookback` messages.
 
-use copyforward::{Config, CopyForward, approximate, exact};
+use copyforward::{Config, CopyForward, capped, greedy};
 
 fn lookback(lb: usize) -> Config {
     Config {
@@ -19,18 +19,18 @@ fn test_lookback_excludes_out_of_window_references() {
         "unique alpha content",
     ];
 
-    let exact = exact(msgs, lookback(1));
+    let greedy = greedy(msgs, lookback(1));
     assert_eq!(
-        exact.render_with_static("[R]")[2],
+        greedy.render_with_static("[R]")[2],
         "unique alpha content",
-        "exact must not reference a message outside the window"
+        "greedy must not reference a message outside the window"
     );
 
-    let approx = approximate(msgs, lookback(1));
+    let approx = capped(msgs, lookback(1));
     assert_eq!(
         approx.render_with_static("[R]")[2],
         "unique alpha content",
-        "approximate must not reference a message outside the window"
+        "capped must not reference a message outside the window"
     );
 }
 
@@ -42,10 +42,10 @@ fn test_lookback_still_allows_in_window_references() {
         "unique alpha content",
     ];
 
-    let exact = exact(msgs, lookback(2));
-    assert_eq!(exact.render_with_static("[R]")[2], "[R]");
+    let greedy = greedy(msgs, lookback(2));
+    assert_eq!(greedy.render_with_static("[R]")[2], "[R]");
 
-    let approx = approximate(msgs, lookback(2));
+    let approx = capped(msgs, lookback(2));
     assert_eq!(approx.render_with_static("[R]")[2], "[R]");
 }
 
@@ -59,11 +59,11 @@ fn test_lookback_window_slides_forward() {
         "unique alpha content",
     ];
 
-    let rendered = exact(msgs, lookback(2)).render_with_static("[R]");
+    let rendered = greedy(msgs, lookback(2)).render_with_static("[R]");
     assert_eq!(rendered[2], "[R]");
     assert_eq!(rendered[3], "[R]");
 
-    let rendered = approximate(msgs, lookback(2)).render_with_static("[R]");
+    let rendered = capped(msgs, lookback(2)).render_with_static("[R]");
     assert_eq!(rendered[2], "[R]");
     assert_eq!(rendered[3], "[R]");
 }
@@ -72,10 +72,10 @@ fn test_lookback_window_slides_forward() {
 fn test_lookback_zero_disables_references() {
     let msgs = &["hello world hello world", "hello world hello world"];
 
-    let rendered = exact(msgs, lookback(0)).render_with_static("[R]");
+    let rendered = greedy(msgs, lookback(0)).render_with_static("[R]");
     assert_eq!(rendered[1], "hello world hello world");
 
-    let rendered = approximate(msgs, lookback(0)).render_with_static("[R]");
+    let rendered = capped(msgs, lookback(0)).render_with_static("[R]");
     assert_eq!(rendered[1], "hello world hello world");
 }
 
@@ -87,9 +87,9 @@ fn test_unlimited_lookback_keeps_all_references() {
         "unique alpha content",
     ];
 
-    let rendered = exact(msgs, Config::default()).render_with_static("[R]");
+    let rendered = greedy(msgs, Config::default()).render_with_static("[R]");
     assert_eq!(rendered[2], "[R]");
 
-    let rendered = approximate(msgs, Config::default()).render_with_static("[R]");
+    let rendered = capped(msgs, Config::default()).render_with_static("[R]");
     assert_eq!(rendered[2], "[R]");
 }
