@@ -41,7 +41,8 @@ def test_text_approximate_with_none():
     assert rendered[1] is None
     assert rendered[2] == "world"
     assert rendered[3] is None
-    assert rendered[4] == "hello [REF]"
+    # "hello world" now references both "hello" (msg 0) and "world" (msg 2)
+    assert rendered[4] == "[REF] [REF]"
 
 def test_tokens_with_none_values():
     """Test that token API handles None values correctly."""

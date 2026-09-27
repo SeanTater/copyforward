@@ -30,10 +30,14 @@ impl PyLiteralSegment {
 #[pyclass]
 #[derive(Debug, Clone)]
 struct PyReferenceSegment {
+    /// Index of the referenced message.
     #[pyo3(get)]
     message: usize,
+    /// Character offset where the referenced substring starts. Index into
+    /// the original message string (Unicode code points, like Python does).
     #[pyo3(get)]
     start: usize,
+    /// Length in characters of the referenced substring.
     #[pyo3(get)]
     len: usize,
 }
@@ -128,6 +132,7 @@ enum TokensAlg {
 #[pyclass(name = "CopyForwardText")]
 struct PyCopyForwardText {
     inner: TextAlg,
+    none_mask: Vec<bool>,
 }
 
 #[pymethods]
@@ -149,34 +154,37 @@ impl PyCopyForwardText {
             cap_len,
             ncap,
         };
+        let none_mask: Vec<bool> = messages.iter().map(|m| m.is_none()).collect();
         let inner = if exact_mode {
             TextAlg::Exact(exact(&messages, config))
         } else {
             TextAlg::Approx(approximate(&messages, config))
         };
-        Ok(PyCopyForwardText { inner })
+        Ok(PyCopyForwardText { inner, none_mask })
     }
 
     fn segments(&self) -> PyResult<Vec<Vec<Py<PyAny>>>> {
         Python::attach(|py| {
+            // Character offsets so references index Python strings directly.
             let segs = match &self.inner {
-                TextAlg::Exact(inner) => CopyForward::segments(inner),
-                TextAlg::Approx(inner) => CopyForward::segments(inner),
+                TextAlg::Exact(inner) => inner.segments_chars(),
+                TextAlg::Approx(inner) => inner.segments_chars(),
             };
-            segs
-                .into_iter()
+            segs.into_iter()
                 .map(|v| {
                     v.into_iter()
                         .map(|seg| match seg {
-                            Segment::Literal(s) => Ok(Py::new(py, PyLiteralSegment::new(s))?.into_any()),
+                            Segment::Literal(s) => {
+                                Ok(Py::new(py, PyLiteralSegment::new(s))?.into_any())
+                            }
                             Segment::Reference {
                                 message_idx,
                                 start,
                                 len,
-                            } => Ok(Py::new(
-                                py,
-                                PyReferenceSegment::new(message_idx, start, len),
-                            )?.into_any()),
+                            } => Ok(
+                                Py::new(py, PyReferenceSegment::new(message_idx, start, len))?
+                                    .into_any(),
+                            ),
                         })
                         .collect::<PyResult<Vec<_>>>()
                 })
@@ -189,8 +197,13 @@ impl PyCopyForwardText {
             TextAlg::Exact(inner) => CopyForward::render_with_static(inner, replacement),
             TextAlg::Approx(inner) => CopyForward::render_with_static(inner, replacement),
         };
-        // Convert empty strings (from None entries) back to None for Python
-        result.into_iter().map(|s| if s.is_empty() { None } else { Some(s) }).collect()
+        // Only entries that were None at construction become None;
+        // genuine empty strings must survive rendering.
+        result
+            .into_iter()
+            .zip(self.none_mask.iter().copied())
+            .map(|(s, is_none)| if is_none { None } else { Some(s) })
+            .collect()
     }
 
     fn compression_ratio(&self) -> f64 {
@@ -285,7 +298,10 @@ impl PyCopyForwardTokens {
             ncap,
         };
         let mut tok = get_tokenizer(&tokenizer).map_err(PyTypeError::new_err)?;
-        let toks: Vec<Option<Vec<u32>>> = messages.into_iter().map(|opt_s| opt_s.map(|s| tok.encode(&s))).collect();
+        let toks: Vec<Option<Vec<u32>>> = messages
+            .into_iter()
+            .map(|opt_s| opt_s.map(|s| tok.encode(&s)))
+            .collect();
         let inner = if exact_mode {
             TokensAlg::Exact(exact_tokens(&toks, config))
         } else {
@@ -303,20 +319,21 @@ impl PyCopyForwardTokens {
                 TokensAlg::Exact(inner) => CopyForwardTokens::segments(inner),
                 TokensAlg::Approx(inner) => CopyForwardTokens::segments(inner),
             };
-            segs
-                .into_iter()
+            segs.into_iter()
                 .map(|v| {
                     v.into_iter()
                         .map(|seg| match seg {
-                            TokenSegment::Literal(toks) => Ok(Py::new(py, PyLiteralTokens::new(toks))?.into_any()),
+                            TokenSegment::Literal(toks) => {
+                                Ok(Py::new(py, PyLiteralTokens::new(toks))?.into_any())
+                            }
                             TokenSegment::Reference {
                                 message_idx,
                                 start,
                                 len,
-                            } => Ok(Py::new(
-                                py,
-                                PyReferenceTokens::new(message_idx, start, len),
-                            )?.into_any()),
+                            } => Ok(
+                                Py::new(py, PyReferenceTokens::new(message_idx, start, len))?
+                                    .into_any(),
+                            ),
                         })
                         .collect::<PyResult<Vec<_>>>()
                 })
@@ -337,9 +354,7 @@ impl PyCopyForwardTokens {
                     let it = seq.get_item(i)?;
                     let val: u64 = it.extract()?;
                     if val > u32::MAX as u64 {
-                        return Err(PyTypeError::new_err(
-                            "replacement token exceeds u32 range",
-                        ));
+                        return Err(PyTypeError::new_err("replacement token exceeds u32 range"));
                     }
                     v.push(val as u32);
                 }
@@ -349,7 +364,7 @@ impl PyCopyForwardTokens {
                     "replacement must be a sequence of ints or np.uint32 array",
                 ));
             };
-            
+
             let out_vecs: Vec<Vec<u32>> = match &self.inner {
                 TokensAlg::Exact(inner) => {
                     CopyForwardTokens::render_with(inner, |_, _, _, _| repl_vec.clone())
