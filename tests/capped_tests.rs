@@ -1,5 +1,5 @@
 use copyforward::fixture::generate_thread;
-use copyforward::{Config, CopyForward, approximate};
+use copyforward::{Config, CopyForward, Segment, approximate};
 
 #[test]
 fn capped_preserves_rendering_small() {
@@ -21,6 +21,40 @@ fn capped_preserves_rendering_small() {
         }
         assert_eq!(r, refs[i]);
     }
+}
+
+#[test]
+fn capped_references_longest_recent_occurrence() {
+    // Each message prepends a fixed prefix, so the last message contains a
+    // long run of the prefix followed by the base. The engine should match
+    // that run against the most recent (longest) occurrence instead of
+    // fragmenting it into many tiny literals and short refs.
+    let prefix = "Added at start.\n> ";
+    let base = "This is the base post body.";
+    let mut msgs: Vec<String> = vec![base.to_string()];
+    for _ in 0..40 {
+        msgs.push(format!("{prefix}{}", msgs.last().unwrap()));
+    }
+    let refs: Vec<&str> = msgs.iter().map(|s| s.as_str()).collect();
+
+    let cf = approximate(&refs, Config::default());
+    let last = &cf.segments()[40];
+    let lit_bytes: usize = last
+        .iter()
+        .filter_map(|s| match s {
+            Segment::Literal(t) => Some(t.len()),
+            _ => None,
+        })
+        .sum();
+    assert!(
+        lit_bytes < prefix.len(),
+        "prefix run should be referenced, not literal: {last:?}"
+    );
+    assert!(
+        last.len() <= 4,
+        "expected a few long segments, got {} segments: {last:?}",
+        last.len()
+    );
 }
 
 #[test]
