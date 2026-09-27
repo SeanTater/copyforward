@@ -6,7 +6,7 @@
 [![Python CI](https://github.com/SeanTater/copyforward/actions/workflows/python-ci.yml/badge.svg?branch=main)](https://github.com/SeanTater/copyforward/actions/workflows/python-ci.yml)
 [![Crates Publish](https://github.com/SeanTater/copyforward/actions/workflows/crates-publish.yml/badge.svg?branch=main)](https://github.com/SeanTater/copyforward/actions/workflows/crates-publish.yml)
 
-Fast copy-forward compression for message threads. Detects repeated substrings across messages and replaces them with references to earlier occurrences, reducing storage requirements by 50-90%.
+Fast copy-forward compression for message threads. Detects repeated substrings across messages and replaces them with references to earlier occurrences, typically reducing storage by 75-99% on repetitive thread data (non-repetitive text stays incompressible).
 
 Perfect for chat logs, document histories, dataframes with missing values, and any sequence of texts with repeated content.
 
@@ -61,8 +61,8 @@ let compressed = exact(messages, Config::default());
 let messages_with_none = &[Some("Hello world"), None, Some("Hello world again")];
 let compressed = exact(messages_with_none, Config::default());
 
-// Fast approximate compression - 2x speed for large texts
-let compressed = approximate(messages, Config::default()); 
+// Approximate compression - fastest on nested/growing threads
+let compressed = approximate(messages, Config::default());
 
 // Render back to original
 let original = compressed.render_with(|_, _, _, text| text.to_string());
@@ -70,14 +70,18 @@ let original = compressed.render_with(|_, _, _, text| text.to_string());
 
 ## Algorithm Selection
 
-Choose between two optimized algorithms:
+Two algorithms are available; which one is faster and smaller depends on the data:
 
-| Algorithm | Best for | Speed | Accuracy |
-|-----------|----------|-------|----------|
-| **Exact** | < 1MB total text, perfect compression needed | Slower | Perfect |
-| **Approximate** | > 1MB text, speed matters | ~2x faster | Excellent |
+| Algorithm | Best for | Why |
+|-----------|----------|-----|
+| **Exact** | Data with many competing repeated fragments (phrase pools, mixed content) | Examines up to 64 candidate matches per position and keeps the longest |
+| **Approximate** | Nested/growing message threads; incompressible data | Capped extension plus most-recent matching; smallest output and fastest on threads |
 
-The approximate algorithm matches long runs against their most recent (longest) source, so it produces the same long references as exact on typical threads while skipping the exhaustive candidate search. It trades a small amount of compression ratio for speed.
+Measured on the benchmark workloads (see the Performance section): on
+nested threads both engines save 95-99.75%, with approximate producing the
+smaller output faster; on phrase-pool data exact saves ~90% versus ~76% for
+approximate and is also faster; on non-repetitive text neither saves
+anything.
 
 ## Missing Value Support
 
@@ -92,7 +96,7 @@ import copyforward
 messages = [
     "User logged in",
     None,  # Missing log entry
-    "User logged in successfully", 
+    "User logged in successfully",
     None,
     "User logged out"
 ]
@@ -199,7 +203,7 @@ python -c "import copyforward; help(copyforward.CopyForwardTokens)"
 
 This prints the docstring and usage information emitted by the PyO3 bindings.
 
-### Rust  
+### Rust
 
 ```rust
 use copyforward::{exact, Config, CopyForward};
@@ -207,7 +211,7 @@ use copyforward::{exact, Config, CopyForward};
 // Custom configuration
 let config = Config {
     min_match_len: 8,
-    lookback: Some(100),  
+    lookback: Some(100),
     ..Config::default()
 };
 
@@ -242,23 +246,26 @@ This represents the second message as a reference to the entire first message pl
 
 ## Performance
 
-Typical compression ratios:
-- **Chat logs**: 60-80% space savings
-- **Code diffs**: 70-90% space savings  
-- **Document versions**: 50-80% space savings
-- **Dataframes with missing values**: 50-85% space savings (None values don't affect compression)
+Compression savings by workload shape (measured; 1.0 = no savings):
 
-Speed comparison on ~1MB of message data (see `benches/` for the full
-workload suite):
-- **Exact**: perfect compression, ~2x slower
-- **Approximate**: ~2x faster, near-perfect compression
+| Workload | Exact | Approximate |
+|----------|-------|-------------|
+| Nested thread (each message quotes the previous) | 95-98% savings | 99-99.75% savings |
+| Repeated messages | 99.3-99.8% savings | 99.3-99.8% savings |
+| Phrase pool (many competing fragments) | ~90% savings | ~75% savings |
+| Non-repetitive text | none | none |
+
+Construction speed on ~0.5-3 MB of text depends on the shape: approximate
+is ~2x faster on nested and repeated workloads, but ~1.3x slower than exact
+on phrase-pool data, where exact's longer matches pay for the extra
+candidate work. Run `cargo bench` for the full per-workload suite.
 
 Missing values add minimal overhead - compression speed remains constant regardless of None density.
 
 ## Repository Structure
 
 - `src/` — Rust library implementation
-- `tests/` — Integration tests  
+- `tests/` — Integration tests
 - `benches/` — Performance benchmarks
 
 ## Changelog
